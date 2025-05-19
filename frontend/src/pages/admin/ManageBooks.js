@@ -1,0 +1,404 @@
+import { useState, useEffect } from 'react';
+import {
+    Container,
+    Grid,
+    Button,
+    Typography,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Box,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    IconButton
+} from '@mui/material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, CloudUpload as CloudUploadIcon } from '@mui/icons-material';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
+import { toast } from 'react-toastify';
+import { bookService } from '../../services/bookService';
+import LoadingSpinner from '../../components/LoadingSpinner';
+
+const validationSchema = Yup.object({
+    title: Yup.string().required('Le titre est obligatoire'),
+    author: Yup.string().required("L'auteur est obligatoire"),
+    price: Yup.number().required('Le prix est obligatoire').min(0, 'Le prix doit être positif'),
+    desc: Yup.string().required('La description est obligatoire'),
+    category: Yup.string().required('La catégorie est obligatoire').min(2, 'La catégorie doit contenir au moins 2 caractères'),
+    stock: Yup.number().required('Le stock est obligatoire').min(0, 'Le stock doit être positif ou nul'),
+    dateRealisation: Yup.date().required('La date de publication est obligatoire'),
+    poster: Yup.string()
+});
+
+const ManageBooks = () => {
+    const [books, setBooks] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [openDialog, setOpenDialog] = useState(false);
+    const [editingBook, setEditingBook] = useState(null);
+    const [categories, setCategories] = useState([]);
+    const [previewImage, setPreviewImage] = useState('');
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState('');
+
+    useEffect(() => {
+        loadBooks();
+        loadCategories();
+    }, []);
+
+    const loadBooks = async () => {
+        setLoading(true);
+        try {
+            const response = await bookService.getAllBooks();
+            // Handle both array response and response with data property
+            const booksData = Array.isArray(response.data) ? response.data : response.data?.data || [];
+            setBooks(booksData);
+        } catch (error) {
+            console.error('Error loading books:', error);
+            toast.error('Échec du chargement des livres');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadCategories = async () => {
+        try {
+            const response = await bookService.getCategories();
+            // Handle both array response and response with data property
+            const categoriesData = Array.isArray(response.data) ? response.data : response.data?.data || [];
+            setCategories(categoriesData);
+        } catch (error) {
+            console.error('Error loading categories:', error);
+            toast.error('Échec du chargement des catégories');
+        }
+    };
+
+    const handleFileSelect = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const formik = useFormik({
+        initialValues: {
+            title: '',
+            author: '',
+            price: '',
+            desc: '',
+            category: '',
+            stock: '',
+            dateRealisation: new Date().toISOString().split('T')[0],
+            poster: ''
+        },
+        validationSchema,
+        onSubmit: async (values) => {
+            try {
+                const formData = new FormData();
+                Object.keys(values).forEach(key => {
+                    if (key !== 'poster') {
+                        formData.append(key, values[key]);
+                    }
+                });
+                
+                if (selectedFile) {
+                    formData.append('poster', selectedFile);
+                }
+
+                if (editingBook) {
+                    await bookService.updateBook(editingBook._id, formData);
+                    toast.success('Livre mis à jour avec succès');
+                } else {
+                    await bookService.createBook(formData);
+                    toast.success('Livre créé avec succès');
+                }
+                handleCloseDialog();
+                loadBooks();
+            } catch (error) {
+                const errorMessage = error?.response?.data?.message || error.message || 'Échec de la sauvegarde';
+                toast.error(errorMessage);
+            }
+        },
+    });
+
+    const handleOpenDialog = (book = null) => {
+        if (book) {
+            setEditingBook(book);
+            setPreviewUrl(book.poster || '');
+            formik.setValues({
+                title: book.title || '',
+                author: book.author || '',
+                price: book.price || '',
+                desc: book.desc || '',
+                category: book.category?.name || '',
+                stock: book.stock || '',
+                dateRealisation: book.dateRealisation ? new Date(book.dateRealisation).toISOString().split('T')[0] : '',
+                poster: book.poster || ''
+            });
+        } else {
+            setEditingBook(null);
+            setPreviewUrl('');
+            formik.resetForm();
+            formik.setFieldValue('dateRealisation', new Date().toISOString().split('T')[0]);
+        }
+        setOpenDialog(true);
+    };
+
+    const handleCloseDialog = () => {
+        setOpenDialog(false);
+        setEditingBook(null);
+        setSelectedFile(null);
+        setPreviewUrl('');
+        formik.resetForm();
+    };
+
+    const handleDelete = async (book) => {
+        if (window.confirm('Are you sure you want to delete this book?')) {
+            try {
+                await bookService.deleteBook(book._id);
+                toast.success('Book deleted successfully');
+                loadBooks();
+            } catch (error) {
+                toast.error('Failed to delete book');
+            }
+        }
+    };
+
+    if (loading) return <LoadingSpinner />;
+
+    return (
+        <Box sx={{ bgcolor: '#f6f8fa', minHeight: '100vh', py: 4 }}>
+            <Container maxWidth="lg">
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                        Gestion des Livres
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => handleOpenDialog()}
+                        sx={{
+                            bgcolor: '#00b8d9',
+                            borderRadius: 2,
+                            fontWeight: 600,
+                            boxShadow: '0 2px 8px rgba(0,184,217,0.07)',
+                            '&:hover': { bgcolor: '#0097b2' }
+                        }}
+                    >
+                        Ajouter un Livre
+                    </Button>
+                </Box>
+
+                <Paper elevation={3} sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(60,60,60,0.07)' }}>
+                    <TableContainer>
+                        <Table sx={{ minWidth: 650 }}>
+                            <TableHead>
+                                <TableRow sx={{ background: '#f3f5f7' }}>
+                                    <TableCell sx={{ fontWeight: 700 }}>Titre</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Auteur</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }}>Catégorie</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }} align="right">Prix</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }} align="right">Stock</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }} align="right">Date de Publication</TableCell>
+                                    <TableCell sx={{ fontWeight: 700 }} align="center">Actions</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {books.map((book) => (
+                                    <TableRow key={book._id} hover>
+                                        <TableCell>{book.title}</TableCell>
+                                        <TableCell>{book.author}</TableCell>
+                                        <TableCell>{book.category?.name}</TableCell>
+                                        <TableCell align="right">{book.price.toFixed(2)} €</TableCell>
+                                        <TableCell align="right">{book.stock}</TableCell>
+                                        <TableCell align="right">
+                                            {new Date(book.dateRealisation).toLocaleDateString()}
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <IconButton color="primary" onClick={() => handleOpenDialog(book)}>
+                                                <EditIcon />
+                                            </IconButton>
+                                            <IconButton color="error" onClick={() => handleDelete(book)}>
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
+
+                <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+                    <form onSubmit={formik.handleSubmit}>
+                        <DialogTitle sx={{ fontWeight: 700, pb: 0 }}>
+                            {editingBook ? 'Modifier le Livre' : 'Ajouter un Nouveau Livre'}
+                        </DialogTitle>
+                        <DialogContent>
+                            <Grid container spacing={2} sx={{ mt: 1 }}>
+                                <Grid item xs={12}>
+                                    <TextField
+                                        fullWidth
+                                        name="title"
+                                        label="Titre"
+                                        value={formik.values.title}
+                                        onChange={formik.handleChange}
+                                        error={formik.touched.title && Boolean(formik.errors.title)}
+                                        helperText={formik.touched.title && formik.errors.title}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="author"
+                                        label="Auteur"
+                                        value={formik.values.author}
+                                        onChange={formik.handleChange}
+                                        error={formik.touched.author && Boolean(formik.errors.author)}
+                                        helperText={formik.touched.author && formik.errors.author}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="price"
+                                        label="Prix"
+                                        type="number"
+                                        value={formik.values.price}
+                                        onChange={formik.handleChange}
+                                        error={formik.touched.price && Boolean(formik.errors.price)}
+                                        helperText={formik.touched.price && formik.errors.price}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={6}>
+                                    <FormControl fullWidth>
+                                        <TextField
+                                            select
+                                            name="category"
+                                            label="Catégorie"
+                                            value={formik.values.category}
+                                            onChange={formik.handleChange}
+                                            error={formik.touched.category && Boolean(formik.errors.category)}
+                                            helperText={formik.touched.category && formik.errors.category}
+                                        >
+                                            {categories.map((category) => (
+                                                <MenuItem key={category._id} value={category.name}>
+                                                    {category.name}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    </FormControl>
+                                </Grid>
+
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="stock"
+                                        label="Stock"
+                                        type="number"
+                                        value={formik.values.stock}
+                                        onChange={formik.handleChange}
+                                        error={formik.touched.stock && Boolean(formik.errors.stock)}
+                                        helperText={formik.touched.stock && formik.errors.stock}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="dateRealisation"
+                                        label="Date de publication"
+                                        type="date"
+                                        value={formik.values.dateRealisation}
+                                        onChange={formik.handleChange}
+                                        error={formik.touched.dateRealisation && Boolean(formik.errors.dateRealisation)}
+                                        helperText={formik.touched.dateRealisation && formik.errors.dateRealisation}
+                                        InputLabelProps={{ shrink: true }}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12}>
+                                    <TextField
+                                        fullWidth
+                                        name="desc"
+                                        label="Description"
+                                        multiline
+                                        rows={4}
+                                        value={formik.values.desc}
+                                        onChange={formik.handleChange}
+                                        error={formik.touched.desc && Boolean(formik.errors.desc)}
+                                        helperText={formik.touched.desc && formik.errors.desc}
+                                    />
+                                </Grid>
+
+                                <Grid item xs={12}>
+                                    <Box sx={{ textAlign: 'center', mb: 2 }}>
+                                        {previewUrl && (
+                                            <Box
+                                                component="img"
+                                                src={previewUrl}
+                                                alt="Preview"
+                                                sx={{
+                                                    maxWidth: '100%',
+                                                    height: 200,
+                                                    objectFit: 'contain',
+                                                    mb: 2
+                                                }}
+                                            />
+                                        )}
+                                    </Box>
+                                    <Button
+                                        component="label"
+                                        variant="outlined"
+                                        startIcon={<CloudUploadIcon />}
+                                        sx={{ width: '100%' }}
+                                    >
+                                        {selectedFile ? 'Changer l\'image' : 'Ajouter une image'}
+                                        <input
+                                            type="file"
+                                            hidden
+                                            accept="image/*"
+                                            onChange={handleFileSelect}
+                                        />
+                                    </Button>
+                                </Grid>
+                            </Grid>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={handleCloseDialog}>Annuler</Button>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                color="primary"
+                                disabled={formik.isSubmitting}
+                                sx={{ borderRadius: 2, fontWeight: 600 }}
+                            >
+                                {editingBook ? 'Mettre à jour' : 'Créer'}
+                            </Button>
+                        </DialogActions>
+                    </form>
+                </Dialog>
+            </Container>
+        </Box>
+    );
+};
+
+export default ManageBooks;
