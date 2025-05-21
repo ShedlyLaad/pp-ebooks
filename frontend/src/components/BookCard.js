@@ -93,7 +93,16 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
     },
 }));
 
-const BookCard = ({ book, onActionComplete, isActionLoading, actionLoadingType }) => {
+const BookCard = ({ 
+    book, 
+    onEdit, 
+    onDelete, 
+    onActionComplete, 
+    isActionLoading, 
+    actionLoadingType,
+    isAuthorView,
+    hideActions 
+}) => {
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedAction, setSelectedAction] = useState(null);
     const [rentDate, setRentDate] = useState(addDays(new Date(), 1));
@@ -177,30 +186,40 @@ const BookCard = ({ book, onActionComplete, isActionLoading, actionLoadingType }
     return (
         <StyledCard>
             <StyledCardMedia
-                component="div"
                 image={book.poster || '/default-book.jpg'}
-                sx={{ paddingTop: '56.25%', position: 'relative' }}
+                title={book.title}
             >
-                <PriceChip
-                    label={`$${book.price.toFixed(2)}`}
-                    color="primary"
-                />
-                <BookOverlay>
-                    <ActionButton
-                        variant="contained"
-                        onClick={() => handleActionClick('order')}
-                        disabled={book.stock === 0}
-                    >
-                        Order
-                    </ActionButton>
-                    <ActionButton
-                        variant="contained"
-                        onClick={() => handleActionClick('rent')}
-                        disabled={book.stock === 0}
-                    >
-                        Rent
-                    </ActionButton>
-                </BookOverlay>
+                <PriceChip label={`$${book.price}`} />
+                {!hideActions && (
+                    <BookOverlay>
+                        {!isAuthorView && (
+                            <>
+                                <ActionButton
+                                    startIcon={<ShoppingCartIcon />}
+                                    onClick={() => handleActionClick('buy')}
+                                >
+                                    Buy
+                                </ActionButton>
+                                <ActionButton
+                                    startIcon={<RentIcon />}
+                                    onClick={() => handleActionClick('rent')}
+                                >
+                                    Rent
+                                </ActionButton>
+                            </>
+                        )}
+                        {isAuthorView && (
+                            <>
+                                <ActionButton onClick={() => onEdit(book)}>
+                                    Edit
+                                </ActionButton>
+                                <ActionButton onClick={() => onDelete(book)}>
+                                    Delete
+                                </ActionButton>
+                            </>
+                        )}
+                    </BookOverlay>
+                )}
             </StyledCardMedia>
             <CardContent sx={{ flexGrow: 1 }}>
                 <Typography gutterBottom variant="h6" component="h2">

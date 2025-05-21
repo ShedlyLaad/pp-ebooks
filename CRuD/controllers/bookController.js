@@ -30,67 +30,43 @@ const upload = multer({
 
 export const createBook = async (req, res) => {
   try {
-    upload(req, res, async function(err) {
-      if (err instanceof multer.MulterError) {
-        return res.status(400).json({ message: "Erreur lors de l'upload: " + err.message });
-      } else if (err) {
-        return res.status(400).json({ message: err.message });
-      }
+    const { title, price, desc, category, dateRealisation, stock } = req.body;
 
-      const { title, price, desc, category, dateRealisation, stock } = req.body;
+    if (!title || !price || !desc || !category) {
+      return res.status(400).json({ 
+        message: "Tous les champs sont obligatoires (titre, prix, description et catégorie)" 
+      });
+    }
 
-      if (!title || !price || !desc || !category) {
-        return res.status(400).json({ 
-          message: "Tous les champs sont obligatoires (titre, prix, description et catégorie)" 
-        });
-      }
+    // Find or create category
+    let categoryDoc = await Category.findOne({ 
+      name: { $regex: new RegExp(`^${category.trim()}$`, 'i') }
+    });
 
-      try {
-        let categoryDoc;
-        
-        if (category) {
-          categoryDoc = await Category.findOne({ 
-            name: { $regex: new RegExp(`^${category.trim()}$`, 'i') }
-          });
+    if (!categoryDoc) {
+      categoryDoc = new Category({ name: category.trim() });
+      await categoryDoc.save();
+    }
 
-          if (!categoryDoc) {
-            categoryDoc = new Category({ name: category.trim() });
-            await categoryDoc.save();
-          }
-        }
+    const newBook = new Book({
+      title: title.trim(),
+      author: req.user.name,
+      price: Number(price),
+      desc: desc.trim(),
+      category: categoryDoc._id,
+      dateRealisation: dateRealisation || new Date(),
+      authorId: req.user.id,
+      stock: Number(stock) || 0,
+      poster: req.file ? `/uploads/books/${req.file.filename}` : null
+    });
 
-        const newBook = new Book({
-          title: title.trim(),
-          author: req.user.name,
-          price: Number(price),
-          desc: desc.trim(),
-          category: categoryDoc._id,
-          dateRealisation: dateRealisation || new Date(),
-          authorId: req.user.id,
-          stock: Number(stock) || 0,
-          poster: req.file ? `/uploads/books/${req.file.filename}` : undefined
-        });
+    const savedBook = await newBook.save();
+    const populatedBook = await Book.findById(savedBook._id).populate('category');
 
-        await newBook.save();
-        const populatedBook = await Book.findById(newBook._id).populate('category');
-
-        res.status(201).json({
-          success: true,
-          message: "Livre créé avec succès",
-          book: populatedBook
-        });
-
-      } catch (error) {
-        console.error("Erreur lors de la création:", error);
-        
-        if (error.name === 'ValidationError') {
-          return res.status(400).json({
-            message: "Erreur de validation",
-            details: Object.values(error.errors).map(err => err.message)
-          });
-        }
-        throw error;
-      }
+    res.status(201).json({
+      success: true,
+      message: "Livre créé avec succès",
+      book: populatedBook
     });
   } catch (error) {
     console.error("Erreur serveur:", error);
@@ -104,67 +80,59 @@ export const createBook = async (req, res) => {
 
 export const updateBook = async (req, res) => {
   try {
-    upload(req, res, async function(err) {
-      if (err instanceof multer.MulterError) {
-        return res.status(400).json({ message: "Erreur lors de l'upload: " + err.message });
-      } else if (err) {
-        return res.status(400).json({ message: err.message });
-      }
+    const { title, author, price, desc, category, dateRealisation, stock } = req.body;
+    
+    const book = await Book.findById(req.params.id);
+    if (!book) {
+      return res.status(404).json({ message: "Livre non trouvé" });
+    }
 
-      const { title, author, price, desc, category, dateRealisation, stock } = req.body;
-      
-      const book = await Book.findById(req.params.id);
-      if (!book) {
-        return res.status(404).json({ message: "Livre non trouvé" });
-      }
+    if (req.user.role === "author" && book.authorId.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Accès refusé: Vous pouvez uniquement modifier vos propres livres" });
+    }
 
-      if (req.user.role === "author" && book.authorId.toString() !== req.user.id) {
-        return res.status(403).json({ message: "Accès refusé: Vous pouvez uniquement modifier vos propres livres" });
-      }
-
-      let categoryDoc;
-      if (category) {
-        categoryDoc = await Category.findOne({ 
-          name: { $regex: new RegExp(`^${category.trim()}$`, 'i') }
-        });
-
-        if (!categoryDoc) {
-          categoryDoc = new Category({ name: category.trim() });
-          await categoryDoc.save();
-        }
-      }
-
-      const updateData = {
-        title: title?.trim(),
-        author: author?.trim(),
-        price: price ? Number(price) : undefined,
-        desc: desc?.trim(),
-        category: categoryDoc ? categoryDoc._id : undefined,
-        dateRealisation: dateRealisation || undefined,
-        stock: stock ? Number(stock) : undefined
-      };
-
-      if (req.file) {
-        updateData.poster = `/uploads/books/${req.file.filename}`;
-      }
-
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
+    let categoryDoc;
+    if (category) {
+      categoryDoc = await Category.findOne({ 
+        name: { $regex: new RegExp(`^${category.trim()}$`, 'i') }
       });
 
-      const updatedBook = await Book.findByIdAndUpdate(
-        req.params.id,
-        updateData,
-        { new: true }
-      ).populate("category");
+      if (!categoryDoc) {
+        categoryDoc = new Category({ name: category.trim() });
+        await categoryDoc.save();
+      }
+    }
 
-      res.status(200).json({
-        success: true,
-        message: "Livre mis à jour avec succès",
-        book: updatedBook
-      });
+    const updateData = {
+      title: title?.trim(),
+      author: author?.trim(),
+      price: price ? Number(price) : undefined,
+      desc: desc?.trim(),
+      category: categoryDoc ? categoryDoc._id : undefined,
+      dateRealisation: dateRealisation || undefined,
+      stock: stock ? Number(stock) : undefined
+    };
+
+    if (req.file) {
+      updateData.poster = `/uploads/books/${req.file.filename}`;
+    }
+
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+
+    const updatedBook = await Book.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    ).populate("category");
+
+    res.status(200).json({
+      success: true,
+      message: "Livre mis à jour avec succès",
+      book: updatedBook
     });
   } catch (error) {
     console.error("Erreur de mise à jour:", error);

@@ -23,8 +23,10 @@ router.get("/categories", getCategories);
 // Protected routes
 router.get("/my-books", isAuthenticated, isAuthor, getMyBooks);
 router.get("/author/stats", isAuthenticated, isAuthor, getAuthorStats);
-router.post("/", isAuthenticated, isAuthor, createBook);
-router.put("/:id", isAuthenticated, isAuthor, updateBook);
+import { handleBookUpload } from "../middlewares/bookUploadMiddleware.js";
+
+router.post("/", isAuthenticated, isAuthor, handleBookUpload, createBook);
+router.put("/:id", isAuthenticated, isAuthor, handleBookUpload, updateBook);
 
 // Admin only routes
 router.get("/", isAuthenticated, isAdmin, getAllBooks);

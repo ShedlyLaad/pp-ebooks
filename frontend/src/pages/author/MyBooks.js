@@ -133,12 +133,12 @@ const MyBooks = () => {
                 ) : (
                     <Grid container spacing={3}>
                         {books.map((book) => (
-                            <Grid item xs={12} sm={6} md={4} key={book._id}>
-                                <BookCard
+                            <Grid item xs={12} sm={6} md={4} key={book._id}>                                <BookCard
                                     book={book}
                                     onEdit={() => handleEdit(book)}
                                     onDelete={() => handleDelete(book)}
-                                    isAuthorView
+                                    isAuthorView={true}
+                                    hideActions={true}
                                 />
                             </Grid>
                         ))}

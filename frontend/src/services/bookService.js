@@ -52,17 +52,13 @@ export const bookService = {
             console.error('Get book error:', error);
             throw error.response?.data || error;
         }
-    },
-
-    createBook: async (bookData) => {
+    },    createBook: async (bookData) => {
         try {
-            const formData = new FormData();
-            Object.keys(bookData).forEach(key => {
-                if (bookData[key] !== undefined) {
-                    formData.append(key, bookData[key]);
+            const response = await api.post('/books', bookData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
                 }
             });
-            const response = await api.post('/books', formData);
             return response.data;
         } catch (error) {
             console.error('Create book error:', error);

@@ -9,12 +9,12 @@ import {
     Grid,
     Box
 } from '@mui/material';
-import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { toast } from 'react-toastify';
-import { bookService } from '../../services/bookService';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { bookService } from '../../services/bookService';
+import { toast } from 'react-toastify';
 
 const validationSchema = Yup.object({
     title: Yup.string().required('Le titre est obligatoire'),
@@ -37,18 +37,6 @@ const AddBook = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState('');
 
-    const handleFileSelect = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            setSelectedFile(file);
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setPreviewUrl(reader.result);
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
     const formik = useFormik({
         initialValues: {
             title: '',
@@ -66,44 +54,40 @@ const AddBook = () => {
                 const formData = new FormData();
                 
                 // Add all form fields to FormData
-                const cleanedValues = {
-                    ...values,
-                    title: values.title.trim(),
-                    desc: values.desc.trim(),
-                    category: values.category.trim(),
-                    price: Number(values.price),
-                    stock: Number(values.stock)
-                };
-
-                Object.keys(cleanedValues).forEach(key => {
-                    formData.append(key, cleanedValues[key]);
+                Object.keys(values).forEach(key => {
+                    formData.append(key, values[key]);
                 });
 
-                // Add the image file if one was selected
+                // Add the file if it exists
                 if (selectedFile) {
                     formData.append('poster', selectedFile);
                 }
 
+                // Send the request
                 const response = await bookService.createBook(formData);
                 
-                if (response.data) {
-                    toast.success('Livre créé avec succès');
-                    navigate('/author/my-books');
-                }
+                toast.success('Livre ajouté avec succès');
+                navigate('/author/my-books');
             } catch (error) {
-                const errorMessage = error?.response?.data?.message || error.message || 'Échec de la création du livre';
-                toast.error(errorMessage);
-                
-                if (error?.response?.data?.details) {
-                    error.response.data.details.forEach(detail => {
-                        toast.error(detail);
-                    });
-                }
+                console.error('Create book error:', error);
+                toast.error(error.response?.data?.message || 'Erreur lors de l\'ajout du livre');
             } finally {
                 setLoading(false);
             }
         }
     });
+
+    const handleFileSelect = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            setSelectedFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setPreviewUrl(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     if (loading) return <LoadingSpinner />;
 
