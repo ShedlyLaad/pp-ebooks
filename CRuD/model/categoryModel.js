@@ -17,7 +17,6 @@ const categorySchema = new mongoose.Schema({
     timestamps: true 
 });
 
-// Single index definition with collation
 categorySchema.index({ name: 1 }, { 
     unique: true, 
     collation: { locale: 'en', strength: 2 }

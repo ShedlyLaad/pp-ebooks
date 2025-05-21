@@ -11,7 +11,6 @@ export const sendContactMail = async (req, res) => {
       });
     }
 
-    // Format the message for better readability
     const htmlMessage = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Contact Form Submission</h2>
@@ -23,14 +22,12 @@ export const sendContactMail = async (req, res) => {
       </div>
     `;
 
-    // Send to admin email
     await sendEmail({
       to: process.env.ADMIN_EMAIL || "admin@bibliof.com", // Make sure to set ADMIN_EMAIL in your environment
       subject: `Contact Form: ${subject}`,
       html: htmlMessage
     });
 
-    // Send confirmation to user
     const userConfirmation = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Thank you for contacting us!</h2>

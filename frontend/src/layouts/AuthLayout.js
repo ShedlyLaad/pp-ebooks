@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Box, Container, Typography, Slide } from '@mui/material';
-import Logo1 from '../images/Logo1.png'; // Assurez-vous du chemin
+import Logo1 from '../images/Logo1.png';
 
 const AuthLayout = ({ title }) => {
   const [showLogo, setShowLogo] = useState(false);
@@ -37,7 +37,6 @@ const AuthLayout = ({ title }) => {
           bgcolor: 'transparent',
         }}
       >
-        {/* Partie gauche avec logo animé */}
         <Box
           sx={{
             flex: 1,
@@ -49,12 +48,12 @@ const AuthLayout = ({ title }) => {
             justifyContent: 'center',
           }}
         >
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: { xs: 'column', md: 'row' }, 
-              alignItems: 'center', 
-              gap: 4 
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: 'center',
+              gap: 4,
             }}
           >
             <Slide direction="up" in={showLogo} timeout={2000}>
@@ -74,31 +73,28 @@ const AuthLayout = ({ title }) => {
             <Typography
               variant="h5"
               component="h4"
-              sx={{ 
+              sx={{
                 fontWeight: 'bold',
-                textAlign: { xs: 'center', md: 'left' } 
+                textAlign: { xs: 'center', md: 'left' },
               }}
             >
-               <br />
-              <Box component="span" sx={{ color: 'hsl(0, 0.00%, 100.00%)' }}>
-             
-              </Box>
+              <br />
+              <Box component="span" sx={{ color: 'hsl(0, 0.00%, 100.00%)' }}></Box>
             </Typography>
           </Box>
 
-          <Typography 
-            variant="h6" 
-            sx={{ 
+          <Typography
+            variant="h6"
+            sx={{
               color: 'hsl(219, 24.50%, 70.40%)',
               mt: 3,
-              textAlign: { xs: 'center', md: 'left' } 
+              textAlign: { xs: 'center', md: 'left' },
             }}
           >
-           Simplifiez la lecture, explorez, louez ou achetez vos livres en toute facilité.
+            Simplifiez la lecture, explorez, louez ou achetez vos livres en toute facilité.
           </Typography>
         </Box>
 
-        {/* Partie droite (formulaire) */}
         <Box
           sx={{
             flex: 1,
@@ -108,7 +104,6 @@ const AuthLayout = ({ title }) => {
             alignItems: 'center',
           }}
         >
-          {/* Form wrapper (identique à la version précédente) */}
           <Box
             sx={{
               position: 'relative',

@@ -1,7 +1,7 @@
 import nodemailer from 'nodemailer';
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+const RETRY_DELAY = 1000; 
 
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -42,7 +42,6 @@ export const sendEmail = async ({ to, subject, html }, retryCount = 0) => {
       return sendEmail({ to, subject, html }, retryCount + 1);
     }
 
-    // Log the final failure after all retries
     console.error('Email sending failed after all retries:', {
       to,
       subject,

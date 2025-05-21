@@ -16,7 +16,6 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Handle MongoDB connection errors
   if (err.name === 'MongoError' || err.name === 'MongoServerError') {
     if (err.code === 11000) {
       return res.status(400).json({

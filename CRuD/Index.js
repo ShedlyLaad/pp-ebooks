@@ -17,7 +17,6 @@ import { startScheduler } from './utils/scheduler.js';
 dotenv.config();
 const app = express();
 
-// CORS Configuration
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:3001'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -39,12 +38,10 @@ connectDB();
 app.use(bodyParser.json()); 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Configuration pour servir les fichiers statiques
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Error handling for file uploads
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -61,17 +58,14 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
-// Mount routes
-app.use("/api", userRoute); // This will handle both /api/auth and /api/users endpoints
+app.use("/api", userRoute); 
 app.use("/api/books", bookRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/rentals", rentalRoutes);
 app.use("/api/mails", mailRoutes);
 
-// Error handling middleware should be after all routes
 app.use(errorHandler);
 
-// Handle 404s
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -79,7 +73,6 @@ app.use((req, res) => {
   });
 });
 
-// Start the scheduler for periodic tasks
 startScheduler();
 
 const startServer = (port) => {

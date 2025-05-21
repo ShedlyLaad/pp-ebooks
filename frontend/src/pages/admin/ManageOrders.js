@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Container,
+    Box,
+    Typography,
     Paper,
     Table,
     TableBody,
@@ -9,68 +10,132 @@ import {
     TableHead,
     TableRow,
     Button,
-    Typography,
-    Box,
-    Chip,
-    Select,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    TextField,
     MenuItem,
-    FormControl
+    Chip,
+    IconButton,
+    Collapse,
+    styled
 } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import { toast } from 'react-toastify';
 import { orderService } from '../../services/orderService';
 import LoadingSpinner from '../../components/LoadingSpinner';
-import { toast } from 'react-toastify';
 
-const ManageOrders = () => {
-    const [orders, setOrders] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+const MainContainer = styled(Box)(({ theme }) => ({
+    background: 'linear-gradient(90deg, #f1efe9 0%, #f9f7f2 100%)',
+    minHeight: '100vh',
+    paddingTop: '90px',
+    paddingLeft: '100px',
+    padding: theme.spacing(4),
+}));
 
-    useEffect(() => {
-        loadOrders();
-    }, []);    const loadOrders = async () => {
+const ContentWrapper = styled(Box)(({ theme }) => ({
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: theme.spacing(0, 2),
+}));
+
+const StyledTableContainer = styled(TableContainer)({
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '16px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
+});
+
+const StyledTableCell = styled(TableCell)({
+    fontFamily: 'Inter, sans-serif',
+    '&.MuiTableCell-head': {
+        backgroundColor: 'rgba(0,0,0,0.02)',
+        fontWeight: 600,
+    },
+});
+
+const StatusDialog = ({ open, onClose, order, onStatusUpdate }) => {
+    const [status, setStatus] = useState(order?.status || 'pending');
+    const [note, setNote] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async () => {
         try {
             setLoading(true);
-            const response = await orderService.getAllOrders();
-            console.log('Orders response in component:', response); // For debugging
-            
-            // Check if we have the data in the correct structure
-            if (response?.success && Array.isArray(response.data)) {
-                setOrders(response.data);
-            } else {
-                console.error('Invalid orders data structure:', response);
-                setOrders([]);
-                throw new Error('Invalid data received from server');
-            }
-            setError(null);
+            await onStatusUpdate(order._id, status, note);
+            onClose();
+            // Reset form
+            setNote('');
         } catch (error) {
-            console.error('Error loading orders:', error);
-            setError(error.message || 'Failed to load orders');
-            toast.error('Failed to load orders');
-            setOrders([]);
-        } finally {
-            setLoading(false);
-        }
-    };const handleStatusChange = async (orderId, newStatus) => {
-        if (!orderId) {
-            toast.error('Invalid order ID');
-            return;
-        }
-
-        try {
-            setLoading(true);
-            await orderService.updateOrderStatus(orderId, newStatus);
-            toast.success(`Order status updated to ${newStatus}`);
-            await loadOrders(); // Refresh the list
-        } catch (error) {
-            console.error('Error updating order status:', error);
-            toast.error(error.message || 'Failed to update order status');
+            console.error('Status update error:', error);
+            toast.error(error.message || 'Failed to update status');
         } finally {
             setLoading(false);
         }
     };
 
+    return (
+        <Dialog 
+            open={open} 
+            onClose={onClose}
+            PaperProps={{
+                sx: {
+                    borderRadius: '16px',
+                    minWidth: '400px',
+                }
+            }}
+        >
+            <DialogTitle>Update Order Status</DialogTitle>
+            <DialogContent>
+                <Box sx={{ my: 2 }}>
+                    <TextField
+                        select
+                        fullWidth
+                        label="Status"
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value)}
+                        margin="normal"
+                    >
+                        <MenuItem value="pending">Pending</MenuItem>
+                        <MenuItem value="confirmed">Confirmed</MenuItem>
+                        <MenuItem value="shipped">Shipped</MenuItem>
+                        <MenuItem value="delivered">Delivered</MenuItem>
+                        <MenuItem value="cancelled">Cancelled</MenuItem>
+                    </TextField>
+                    <TextField
+                        fullWidth
+                        label="Note"
+                        multiline
+                        rows={3}
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        margin="normal"
+                        placeholder="Add a note about this status change..."
+                    />
+                </Box>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose} disabled={loading}>Cancel</Button>
+                <Button 
+                    onClick={handleSubmit} 
+                    variant="contained" 
+                    disabled={loading}
+                >
+                    {loading ? 'Updating...' : 'Update Status'}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+const OrderRow = ({ order, onStatusUpdate }) => {
+    const [open, setOpen] = useState(false);
+    const [openStatusDialog, setOpenStatusDialog] = useState(false);
+
     const getStatusColor = (status) => {
-        switch (status) {
+        switch (status?.toLowerCase()) {
             case 'pending':
                 return 'warning';
             case 'confirmed':
@@ -79,121 +144,219 @@ const ManageOrders = () => {
                 return 'primary';
             case 'delivered':
                 return 'success';
+            case 'cancelled':
+                return 'error';
             default:
                 return 'default';
         }
-    };    const formatDate = (date) => {
-        if (!date) return 'N/A';
+    };
+
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    return (
+        <>
+            <TableRow>
+                <TableCell>
+                    <IconButton size="small" onClick={() => setOpen(!open)}>
+                        {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                    </IconButton>
+                </TableCell>
+                <TableCell>{order._id}</TableCell>
+                <TableCell>{formatDate(order.createdAt)}</TableCell>
+                <TableCell>
+                    <Chip
+                        label={order.status?.toUpperCase()}
+                        color={getStatusColor(order.status)}
+                        size="small"
+                    />
+                </TableCell>
+                <TableCell>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setOpenStatusDialog(true)}
+                    >
+                        Update Status
+                    </Button>
+                </TableCell>
+            </TableRow>
+            <TableRow>
+                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
+                    <Box sx={{ margin: 1 }}>
+                        <Collapse in={open} timeout="auto" unmountOnExit>
+                            <Box sx={{ margin: 1 }}>
+                                <Typography variant="h6" gutterBottom>
+                                    Order Details
+                                </Typography>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>Book</TableCell>
+                                            <TableCell>Quantity</TableCell>
+                                            <TableCell>Price</TableCell>
+                                            <TableCell>Total</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {order.orderItems.map((item, index) => (
+                                            <TableRow key={index}>
+                                                <TableCell>{item.bookId.title}</TableCell>
+                                                <TableCell>{item.quantity}</TableCell>
+                                                <TableCell>€{item.bookId.price.toFixed(2)}</TableCell>
+                                                <TableCell>€{(item.bookId.price * item.quantity).toFixed(2)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                        <TableRow>
+                                            <TableCell colSpan={3} align="right"><strong>Total Amount:</strong></TableCell>
+                                            <TableCell>
+                                                <strong>
+                                                    €{order.orderItems.reduce((sum, item) => 
+                                                        sum + (item.bookId.price * item.quantity), 0).toFixed(2)}
+                                                </strong>
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableBody>
+                                </Table>
+                                {order.statusHistory && order.statusHistory.length > 0 && (
+                                    <Box sx={{ mt: 2 }}>
+                                        <Typography variant="h6" gutterBottom>
+                                            Status History
+                                        </Typography>
+                                        <Table size="small">
+                                            <TableHead>
+                                                <TableRow>
+                                                    <TableCell>Status</TableCell>
+                                                    <TableCell>Date</TableCell>
+                                                    <TableCell>Note</TableCell>
+                                                </TableRow>
+                                            </TableHead>
+                                            <TableBody>
+                                                {order.statusHistory.map((history, index) => (
+                                                    <TableRow key={index}>
+                                                        <TableCell>
+                                                            <Chip
+                                                                label={history.status.toUpperCase()}
+                                                                color={getStatusColor(history.status)}
+                                                                size="small"
+                                                            />
+                                                        </TableCell>
+                                                        <TableCell>{formatDate(history.date)}</TableCell>
+                                                        <TableCell>{history.note}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    </Box>
+                                )}
+                            </Box>
+                        </Collapse>
+                    </Box>
+                </TableCell>
+            </TableRow>
+            <StatusDialog
+                open={openStatusDialog}
+                onClose={() => setOpenStatusDialog(false)}
+                order={order}
+                onStatusUpdate={onStatusUpdate}
+            />
+        </>
+    );
+};
+
+const ManageOrders = () => {
+    const [orders, setOrders] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const loadOrders = async () => {
         try {
-            return new Date(date).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-        } catch (error) {
-            console.error('Error formatting date:', error);
-            return 'Invalid Date';
+            setLoading(true);
+            const response = await orderService.getAllOrders();
+            setOrders(response.data || []);
+            setError(null);
+        } catch (err) {
+            const errorMsg = err.message || 'Failed to load orders';
+            setError(errorMsg);
+            toast.error(errorMsg);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const calculateTotal = (orderItems) => {
-        if (!Array.isArray(orderItems)) return '0.00';
+    useEffect(() => {
+        loadOrders();
+    }, []);
+
+    const handleStatusUpdate = async (orderId, newStatus, note) => {
         try {
-            return orderItems.reduce((total, item) => {
-                const price = parseFloat(item?.bookId?.price) || 0;
-                const quantity = parseInt(item?.quantity) || 0;
-                return total + (price * quantity);
-            }, 0).toFixed(2);
+            await orderService.updateOrderStatus(orderId, newStatus, note);
+            toast.success('Order status updated successfully');
+            await loadOrders(); // Refresh orders list
         } catch (error) {
-            console.error('Error calculating total:', error);
-            return '0.00';
+            toast.error(error.message || 'Failed to update order status');
+            throw error; // Propagate error to the dialog
         }
     };
 
     if (loading) {
-        return <LoadingSpinner />;
+        return (
+            <MainContainer>
+                <ContentWrapper>
+                    <LoadingSpinner />
+                </ContentWrapper>
+            </MainContainer>
+        );
     }
 
     if (error) {
         return (
-            <Container>
-                <Typography color="error" variant="h6">
-                    {error}
-                </Typography>
-            </Container>
-        );
-    }    if (!orders || orders.length === 0) {
-        return (
-            <Container>
-                <Typography variant="h4" gutterBottom>
-                    Manage Orders
-                </Typography>
-                <Typography variant="body1" color="textSecondary">
-                    No orders found.
-                </Typography>
-            </Container>
+            <MainContainer>
+                <ContentWrapper>
+                    <Typography color="error" variant="h6">{error}</Typography>
+                </ContentWrapper>
+            </MainContainer>
         );
     }
 
     return (
-        <Container>
-            <Typography variant="h4" gutterBottom>
-                Manage Orders
-            </Typography>
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Order ID</TableCell>
-                            <TableCell>User</TableCell>
-                            <TableCell>Date</TableCell>
-                            <TableCell>Items</TableCell>
-                            <TableCell>Total</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {orders?.map((order) => (
-                            <TableRow key={order?._id || Math.random()}>
-                                <TableCell>{order?._id}</TableCell>
-                                <TableCell>{order?.userId?.name || 'N/A'}</TableCell>
-                                <TableCell>{formatDate(order?.createdAt)}</TableCell>
-                                <TableCell>
-                                    {order?.orderItems?.map((item, index) => (
-                                        <Box key={index}>
-                                            {item?.bookId?.title || 'Unknown Book'} (x{item?.quantity || 0})
-                                        </Box>
-                                    )) || 'No items'}
-                                </TableCell>
-                                <TableCell>${calculateTotal(order?.orderItems || [])}</TableCell>
-                                <TableCell>
-                                    <Chip
-                                        label={order?.status || 'unknown'}
-                                        color={getStatusColor(order?.status)}
-                                        size="small"
-                                    />
-                                </TableCell>
-                                <TableCell>
-                                    <FormControl size="small">
-                                        <Select
-                                            value={order?.status || 'pending'}
-                                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                                            size="small"
-                                        >
-                                            <MenuItem value="pending">Pending</MenuItem>
-                                            <MenuItem value="confirmed">Confirmed</MenuItem>
-                                            <MenuItem value="shipped">Shipped</MenuItem>
-                                            <MenuItem value="delivered">Delivered</MenuItem>
-                                        </Select>
-                                    </FormControl>
-                                </TableCell>
+        <MainContainer>
+            <ContentWrapper>
+                <Typography variant="h4" gutterBottom sx={{ fontFamily: 'Playfair Display' }}>
+                    Manage Orders
+                </Typography>
+
+                <StyledTableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <StyledTableCell />
+                                <StyledTableCell>Order ID</StyledTableCell>
+                                <StyledTableCell>Date</StyledTableCell>
+                                <StyledTableCell>Status</StyledTableCell>
+                                <StyledTableCell>Actions</StyledTableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Container>
+                        </TableHead>
+                        <TableBody>
+                            {orders.map((order) => (
+                                <OrderRow 
+                                    key={order._id} 
+                                    order={order}
+                                    onStatusUpdate={handleStatusUpdate}
+                                />
+                            ))}
+                        </TableBody>
+                    </Table>
+                </StyledTableContainer>
+            </ContentWrapper>
+        </MainContainer>
     );
 };
 

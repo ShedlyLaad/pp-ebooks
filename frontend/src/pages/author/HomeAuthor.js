@@ -101,14 +101,7 @@ const HomeAuthor = () => {
         }));
     };    const handleRent = async (book) => {
         try {
-            // Prevent authors from renting their own books
-            if (book.author?._id === user?._id) {
-                toast.error("You cannot rent your own book");
-                return;
-            }
-
             setActionLoading({ type: 'rent', id: book._id });
-            
             // Set due date to 14 days from now
             const dueDate = new Date();
             dueDate.setDate(dueDate.getDate() + 14);
@@ -120,12 +113,7 @@ const HomeAuthor = () => {
             toast.success('Book rented successfully!');
             navigate('/author/my-rentals');
         } catch (error) {
-            // Specific error handling for 403 errors
-            if (error.response?.status === 403) {
-                toast.error('You do not have permission to rent this book');
-            } else {
-                toast.error(error.message || 'Failed to rent book');
-            }
+            toast.error(error.message || 'Failed to rent book');
         } finally {
             setActionLoading({ type: null, id: null });
         }
@@ -133,27 +121,16 @@ const HomeAuthor = () => {
 
     const handleBuy = async (book) => {
         try {
-            // Prevent authors from buying their own books
-            if (book.author?._id === user?._id) {
-                toast.error("You cannot purchase your own book");
-                return;
-            }
-
             setActionLoading({ type: 'buy', id: book._id });
             await orderService.createOrder({
-                orderItems: [{
-                    bookId: book._id,
-                    quantity: 1
-                }]
+                bookId: book._id,
+                quantity: 1,
+                totalAmount: book.price
             });
-            toast.success('Book ordered successfully!');
+            toast.success('Book purchased successfully!');
             navigate('/author/my-orders');
         } catch (error) {
-            if (error.response?.status === 403) {
-                toast.error('You do not have permission to purchase this book');
-            } else {
-                toast.error(error.message || 'Failed to purchase book');
-            }
+            toast.error(error.message || 'Failed to purchase book');
         } finally {
             setActionLoading({ type: null, id: null });
         }

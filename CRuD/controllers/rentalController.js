@@ -13,11 +13,10 @@ export const rentBook = async (req, res) => {
     if (!bookId || !dueDate) {
       return res.status(400).json({
         success: false,
-        message: 'Book ID and Due Date are required'
+        message: "Book ID and due date are required"
       });
     }
 
-    // Validate due date format and ensure it's in the future
     const dueDateObj = new Date(dueDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -25,34 +24,32 @@ export const rentBook = async (req, res) => {
     if (isNaN(dueDateObj.getTime())) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid date format'
+        message: "Invalid due date format"
       });
     }
 
     if (dueDateObj <= today) {
       return res.status(400).json({
         success: false,
-        message: 'Due date must be at least one day in the future'
+        message: "Due date must be in the future"
       });
     }
 
-    // Check book availability
     const book = await Book.findById(bookId);
     if (!book) {
       return res.status(404).json({
         success: false,
-        message: 'Book not found'
+        message: "Book not found"
       });
     }
 
     if (book.stock < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Book is currently out of stock'
+        message: "Book is out of stock"
       });
     }
 
-    // Check existing rental
     const existingRental = await Rental.findOne({
       userId,
       bookId,
@@ -62,20 +59,18 @@ export const rentBook = async (req, res) => {
     if (existingRental) {
       return res.status(400).json({
         success: false,
-        message: 'You already have an active rental for this book'
+        message: "You already have an active rental for this book"
       });
     }
 
-    // Verify user exists
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found"
       });
     }
 
-    // Create rental with proper date handling
     const rental = new Rental({
       userId,
       bookId,
@@ -93,35 +88,47 @@ export const rentBook = async (req, res) => {
     );
 
     if (user.mail) {
-      const emailHtml = emailTemplates.rentalConfirmation(user, { 
-        ...savedRental._doc, 
-        bookId: book 
-      });
-      
-      sendEmail({
-        to: user.mail,
-        subject: "Your BiblioF Rental Confirmation",
-        html: emailHtml
-      }).catch(error => {
-        console.error("Rental confirmation email error:", error);
-      });
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Rental Confirmation</h2>
+          <p>Dear ${user.name},</p>
+          <p>Your rental has been confirmed:</p>
+          <ul>
+            <li>Book: ${book.title}</li>
+            <li>Due Date: ${dueDateObj.toLocaleDateString()}</li>
+          </ul>
+          <p>Please ensure to return the book by the due date to avoid any late fees.</p>
+        </div>
+      `;
+
+      try {
+        await sendEmail({
+          to: user.mail,
+          subject: "Rental Confirmation",
+          html: emailHtml
+        });
+      } catch (emailError) {
+        console.error("Failed to send rental confirmation email:", emailError);
+      }
     }
 
-    // Populate the rental with book details for the response
+    // Populate the rental with book and user details before sending response
     const populatedRental = await Rental.findById(savedRental._id)
-      .populate('bookId');
+      .populate('bookId')
+      .populate('userId', '-password');
 
     return res.status(201).json({
       success: true,
-      message: 'Book rented successfully',
+      message: "Book rented successfully",
       data: populatedRental
     });
 
   } catch (error) {
-    console.error('Rental creation error:', error);
-    return res.status(error.message?.includes('not found') ? 404 : 400).json({
+    console.error("Rental creation error:", error);
+    return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to rent book'
+      message: "Failed to rent book",
+      error: error.message
     });
   }
 };

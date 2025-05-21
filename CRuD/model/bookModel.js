@@ -9,7 +9,7 @@ const bookSchema = new mongoose.Schema({
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     dateRealisation: { type: Date },
     stock: { type: Number, required: true, default: 0, min: 0 },
-    poster: { type: String } // Champ pour l'URL de l'image
+    poster: { type: String } 
 }, { timestamps: true });
 
 export default mongoose.model("Book", bookSchema);

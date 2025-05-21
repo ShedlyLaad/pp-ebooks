@@ -4,7 +4,6 @@ import Order from "../model/orderModel.js";
 import multer from "multer";
 import path from "path";
 
-// Configuration de multer pour le stockage des images
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, 'uploads/books/');
@@ -16,7 +15,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5000000 }, // limite de 5MB
+  limits: { fileSize: 5000000 },
   fileFilter: function (req, file, cb) {
     const filetypes = /jpeg|jpg|png|gif/;
     const mimetype = filetypes.test(file.mimetype);
@@ -40,7 +39,6 @@ export const createBook = async (req, res) => {
 
       const { title, price, desc, category, dateRealisation, stock } = req.body;
 
-      // Validation des champs requis
       if (!title || !price || !desc || !category) {
         return res.status(400).json({ 
           message: "Tous les champs sont obligatoires (titre, prix, description et catégorie)" 
@@ -104,7 +102,6 @@ export const createBook = async (req, res) => {
   }
 };
 
-// Admin ou Author (update)
 export const updateBook = async (req, res) => {
   try {
     upload(req, res, async function(err) {
@@ -116,18 +113,15 @@ export const updateBook = async (req, res) => {
 
       const { title, author, price, desc, category, dateRealisation, stock } = req.body;
       
-      // Vérifier si le livre existe
       const book = await Book.findById(req.params.id);
       if (!book) {
         return res.status(404).json({ message: "Livre non trouvé" });
       }
 
-      // Vérifier les permissions
       if (req.user.role === "author" && book.authorId.toString() !== req.user.id) {
         return res.status(403).json({ message: "Accès refusé: Vous pouvez uniquement modifier vos propres livres" });
       }
 
-      // Gérer la catégorie
       let categoryDoc;
       if (category) {
         categoryDoc = await Category.findOne({ 
@@ -140,7 +134,6 @@ export const updateBook = async (req, res) => {
         }
       }
 
-      // Préparer les données à mettre à jour
       const updateData = {
         title: title?.trim(),
         author: author?.trim(),
@@ -151,19 +144,16 @@ export const updateBook = async (req, res) => {
         stock: stock ? Number(stock) : undefined
       };
 
-      // Ajouter l'image si elle est fournie
       if (req.file) {
         updateData.poster = `/uploads/books/${req.file.filename}`;
       }
 
-      // Supprimer les champs undefined
       Object.keys(updateData).forEach(key => {
         if (updateData[key] === undefined) {
           delete updateData[key];
         }
       });
 
-      // Mettre à jour le livre
       const updatedBook = await Book.findByIdAndUpdate(
         req.params.id,
         updateData,
@@ -186,7 +176,6 @@ export const updateBook = async (req, res) => {
   }
 };
 
-// Admin uniquement
 export const deleteBook = async (req, res) => {
   try {
     const deletedBook = await Book.findByIdAndDelete(req.params.id);
@@ -197,7 +186,6 @@ export const deleteBook = async (req, res) => {
   }
 };
 
-// Admin uniquement
 export const getBookById = async (req, res) => {
   try {
     const book = await Book.findById(req.params.id).populate("category");
@@ -208,7 +196,6 @@ export const getBookById = async (req, res) => {
   }
 };
 
-// Admin uniquement
 export const getAllBooks = async (req, res) => {
   try {
     const books = await Book.find().populate("category");
@@ -218,7 +205,6 @@ export const getAllBooks = async (req, res) => {
   }
 };
 
-// Auteur uniquement
 export const getMyBooks = async (req, res) => {
   try {
     const books = await Book.find({ authorId: req.user.id }).populate("category");
@@ -232,7 +218,6 @@ export const searchBooks = async (req, res) => {
   try {
     const { search, category, minPrice, maxPrice, inStock, sortBy = 'newest' } = req.query;
 
-    // Build query
     const query = {};
 
     if (search) {
@@ -271,7 +256,7 @@ export const searchBooks = async (req, res) => {
       case 'priceHigh':
         sort = { price: -1 };
         break;
-      default: // newest
+      default: 
         sort = { dateRealisation: -1 };
     }
 
@@ -313,13 +298,10 @@ export const getCategories = async (req, res) => {
 
 export const getAuthorStats = async (req, res) => {
     try {
-        // Get user ID from auth middleware
         const authorId = req.user.id;
 
-        // Get total books
         const totalBooks = await Book.countDocuments({ authorId });
 
-        // Get average rating
         const books = await Book.find({ authorId });
         let totalRating = 0;
         let ratedBooks = 0;
@@ -331,7 +313,6 @@ export const getAuthorStats = async (req, res) => {
         });
         const avgRating = ratedBooks > 0 ? totalRating / ratedBooks : 0;
 
-        // Get total sales (from orders)
         const orders = await Order.find({ 'items.book': { $in: books.map(b => b._id) } });
         let totalSales = 0;
         orders.forEach(order => {

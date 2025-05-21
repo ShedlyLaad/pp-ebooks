@@ -41,13 +41,22 @@ const rentalSchema = new mongoose.Schema({
   }
 });
 
-// Pre-save middleware to set status based on due date
+// Pre-save middleware to set status based on due date and returned status
 rentalSchema.pre('save', function(next) {
+  const now = new Date();
+  
   if (this.isModified('returned') && this.returned) {
     this.status = 'returned';
-    this.returnedAt = new Date();
-  } else if (!this.returned && this.dueDate < new Date()) {
-    this.status = 'overdue';
+    this.returnedAt = now;
+  } else if (!this.returned) {
+    if (this.dueDate < now) {
+      this.status = 'overdue';
+    } else {
+      // Only update to active if it's not already overdue
+      if (this.status !== 'overdue') {
+        this.status = 'active';
+      }
+    }
   }
   next();
 });

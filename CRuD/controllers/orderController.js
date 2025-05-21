@@ -15,7 +15,6 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Validate stock for all items
     for (const item of orderItems) {
       const book = await Book.findById(item.bookId);
       if (!book) {
@@ -32,7 +31,6 @@ export const createOrder = async (req, res) => {
       }
     }
 
-    // Create order
     const newOrder = new Order({
       userId: req.user.id,
       orderItems,
@@ -42,7 +40,6 @@ export const createOrder = async (req, res) => {
 
     const savedOrder = await newOrder.save();
 
-    // Update stock for all items
     await Promise.all(orderItems.map(item => 
       Book.findByIdAndUpdate(
         item.bookId,
@@ -50,7 +47,6 @@ export const createOrder = async (req, res) => {
       )
     ));
 
-    // After successful save, get fully populated order
     const populatedOrder = await Order.findById(savedOrder._id)
       .populate({
         path: "orderItems.bookId",
@@ -58,11 +54,9 @@ export const createOrder = async (req, res) => {
       })
       .populate("userId");
 
-    // Send confirmation email
     const user = await User.findById(req.user.id);
     if (user?.mail) {
       const emailHtml = emailTemplates.orderConfirmation(user, populatedOrder);
-      // Send email asynchronously
       sendEmail({
         to: user.mail,
         subject: "Your BiblioF Order Confirmation",
@@ -137,12 +131,20 @@ export const getAllOrders = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, note } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({
         success: false,
         message: "Invalid order ID format"
+      });
+    }
+
+    const validStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Must be one of: " + validStatuses.join(", ")
       });
     }
 
@@ -157,38 +159,85 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    order.status = status;
-    await order.save();
+    const updateData = {
+      status,
+      statusHistory: [
+        ...order.statusHistory,
+        {
+          status,
+          date: new Date(),
+          note: note || undefined
+        }
+      ]
+    };
 
-    // Send email notification
-    if (order.userId?.mail) {
+    if (status === 'confirmed' && !order.confirmedAt) {
+      updateData.confirmedAt = new Date();
+    } else if (status === 'shipped' && !order.shippedAt) {
+      updateData.shippedAt = new Date();
+    } else if (status === 'delivered' && !order.deliveredAt) {
+      updateData.deliveredAt = new Date();
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    )
+    .populate('userId')
+    .populate('orderItems.bookId');
+
+    if (updatedOrder.userId?.mail) {
+      const statusMessages = {
+        confirmed: 'Your order has been confirmed and is being processed',
+        shipped: 'Your order has been shipped and is on its way',
+        delivered: 'Your order has been delivered successfully',
+        cancelled: 'Your order has been cancelled'
+      };
+
       const emailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Order Status Update</h2>
-          <p>Dear ${order.userId.name},</p>
-          <p>Your order status has been updated to: <strong>${status}</strong></p>
-          <p>Order ID: ${order._id}</p>
-          <h3>Order Details:</h3>
-          <ul>
-            ${order.orderItems.map(item => `
-              <li>${item.bookId.title} (Quantity: ${item.quantity})</li>
-            `).join('')}
-          </ul>
+          <p>Dear ${updatedOrder.userId.name},</p>
+          <p>${statusMessages[status] || 'Your order status has been updated'}</p>
+          <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+            <p><strong>Order Details:</strong></p>
+            <ul style="list-style: none; padding: 0;">
+              <li>Order ID: ${updatedOrder._id}</li>
+              <li>New Status: ${status.toUpperCase()}</li>
+              ${note ? `<li>Note: ${note}</li>` : ''}
+            </ul>
+          </div>
+          <div style="margin-top: 20px;">
+            <h3>Items:</h3>
+            <ul style="list-style: none; padding: 0;">
+              ${updatedOrder.orderItems.map(item => `
+                <li style="margin-bottom: 10px;">
+                  ${item.bookId.title} (Quantity: ${item.quantity})
+                </li>
+              `).join('')}
+            </ul>
+          </div>
         </div>
       `;
 
-      await sendEmail({
-        to: order.userId.mail,
-        subject: `Order Status Update - ${status.toUpperCase()}`,
-        html: emailHtml
-      });
+      try {
+        await sendEmail({
+          to: updatedOrder.userId.mail,
+          subject: `Order Status Update - ${status.toUpperCase()}`,
+          html: emailHtml
+        });
+      } catch (emailError) {
+        console.warn('Failed to send status update email:', emailError);
+      }
     }
 
     res.status(200).json({
       success: true,
       message: "Order status updated successfully",
-      data: order
+      data: updatedOrder
     });
+
   } catch (error) {
     console.error("Update order error:", error);
     res.status(500).json({
@@ -219,7 +268,6 @@ export const deleteOrder = async (req, res) => {
       });
     }
 
-    // Restore stock for all items
     for (const item of order.orderItems) {
       await Book.findByIdAndUpdate(item.bookId, {
         $inc: { stock: item.quantity }
@@ -238,6 +286,53 @@ export const deleteOrder = async (req, res) => {
       success: false,
       message: "Failed to delete order",
       error: error.message 
+    });
+  }
+};
+
+export const getOrderById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID format"
+      });
+    }
+
+    const order = await Order.findById(id)
+      .populate({
+        path: "orderItems.bookId",
+        populate: { path: "category" }
+      })
+      .populate("userId", "-password");
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    if (req.user.role !== 'admin' && order.userId._id.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to view this order"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: order
+    });
+
+  } catch (error) {
+    console.error("Get order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch order details",
+      error: error.message
     });
   }
 };

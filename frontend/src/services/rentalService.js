@@ -1,10 +1,10 @@
 import API from '../api/axios';
 
-export const rentalService = {  getAllRentals: async () => {
+export const rentalService = {
+  getAllRentals: async () => {
     try {
       const response = await API.get('/rentals');
-      console.log('Rentals response:', response); // For debugging
-      return response.data || { data: [] };
+      return response.data;
     } catch (error) {
       console.error('Error in getAllRentals:', error);
       throw error.response?.data || { message: 'Failed to fetch rentals' };
@@ -27,7 +27,7 @@ export const rentalService = {  getAllRentals: async () => {
         throw new Error('Book ID is required');
       }
       if (!rentalData?.dueDate) {
-        throw new Error('Due Date is required');
+        throw new Error('Due date is required');
       }
 
       // Validate due date is in the future
@@ -36,22 +36,18 @@ export const rentalService = {  getAllRentals: async () => {
       today.setHours(0, 0, 0, 0);
 
       if (isNaN(dueDate.getTime())) {
-        throw new Error('Invalid date format');
+        throw new Error('Invalid due date format');
       }
 
       if (dueDate <= today) {
-        throw new Error('Due date must be at least one day in the future');
+        throw new Error('Due date must be in the future');
       }
 
-      const response = await API.post('/rentals', {
-        bookId: rentalData.bookId,
-        dueDate: dueDate.toISOString()
-      });
-
+      const response = await API.post('/rentals', rentalData);
       return response.data;
     } catch (error) {
-      console.error('Rental error:', error);
-      throw error.response?.data || error;
+      console.error('Error in rentBook:', error);
+      throw error.response?.data || { message: error.message || 'Failed to rent book' };
     }
   },
 
@@ -60,12 +56,11 @@ export const rentalService = {  getAllRentals: async () => {
       if (!rentalId) {
         throw new Error('Rental ID is required');
       }
-
       const response = await API.put(`/rentals/return/${rentalId}`);
       return response.data;
     } catch (error) {
-      console.error('Return error:', error);
-      throw error.response?.data || error;
+      console.error('Error in returnBook:', error);
+      throw error.response?.data || { message: error.message || 'Failed to return book' };
     }
   },
 
@@ -74,7 +69,8 @@ export const rentalService = {  getAllRentals: async () => {
       const response = await API.get('/rentals/my-rentals');
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch your rentals' };
+      console.error('Error in getMyRentals:', error);
+      throw error.response?.data || { message: error.message || 'Failed to fetch your rentals' };
     }
   },
 
@@ -84,12 +80,23 @@ export const rentalService = {  getAllRentals: async () => {
         throw new Error('Rental ID and new due date are required');
       }
 
-      const response = await API.put(`/rentals/${id}/extend`, {
-        dueDate: new Date(newDueDate).toISOString()
-      });
+      const dueDate = new Date(newDueDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (isNaN(dueDate.getTime())) {
+        throw new Error('Invalid due date format');
+      }
+
+      if (dueDate <= today) {
+        throw new Error('New due date must be in the future');
+      }
+
+      const response = await API.put(`/rentals/${id}/extend`, { dueDate: newDueDate });
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to extend rental' };
+      console.error('Error in extendRental:', error);
+      throw error.response?.data || { message: error.message || 'Failed to extend rental' };
     }
   }
 };
