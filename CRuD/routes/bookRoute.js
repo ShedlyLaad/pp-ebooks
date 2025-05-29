@@ -15,6 +15,7 @@ import { isAdmin } from "../middlewares/adminMiddleware.js";
 import { isAuthor } from "../middlewares/authorMiddleware.js";
 import { isAuthenticated } from "../middlewares/authMiddleware.js";
 import { handleBookUpload } from "../middlewares/bookUploadMiddleware.js";
+import { isAuthorOrAdmin } from "../middlewares/authorOrAdminMiddleware.js";
 
 const router = express.Router();
 
@@ -28,8 +29,8 @@ router.get("/my-books", isAuthenticated, isAuthor, getMyBooks);
 router.get("/author/stats", isAuthenticated, isAuthor, getAuthorStats);
 
 // Routes for both Authors and Admins
-router.post("/", isAuthenticated, isAdmin, handleBookUpload, createBook);
-router.put("/:id", isAuthenticated, isAdmin, handleBookUpload, updateBook);
+router.post("/", isAuthenticated, isAuthorOrAdmin, handleBookUpload, createBook);
+router.put("/:id", isAuthenticated, isAuthorOrAdmin, handleBookUpload, updateBook);
 
 // Admin only routes
 router.get("/", isAuthenticated, isAdmin, getAllBooks);

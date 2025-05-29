@@ -127,46 +127,54 @@ const ManageBooks = () => {
                 setLoading(true);
                 const formData = new FormData();
                 
-                // Valider et convertir les champs numériques
-                const price = parseFloat(values.price);
-                const stock = parseInt(values.stock);
-                
-                if (isNaN(price) || price < 0) {
+                // Valider et convertir les champs
+                const fieldsToValidate = {
+                    title: values.title.trim(),
+                    author: values.author.trim(),
+                    price: parseFloat(values.price),
+                    desc: values.desc.trim(),
+                    category: values.category.trim(),
+                    stock: parseInt(values.stock),
+                    dateRealisation: new Date(values.dateRealisation).toISOString()
+                };
+
+                // Validation des champs numériques
+                if (isNaN(fieldsToValidate.price) || fieldsToValidate.price < 0) {
                     toast.error('Le prix doit être un nombre valide et positif');
                     return;
                 }
-                
-                if (isNaN(stock) || stock < 0) {
+                if (isNaN(fieldsToValidate.stock) || fieldsToValidate.stock < 0) {
                     toast.error('Le stock doit être un nombre valide et positif');
                     return;
                 }
 
-                // Ajouter les champs au FormData
-                formData.append('title', values.title.trim());
-                formData.append('author', values.author.trim());
-                formData.append('price', price);
-                formData.append('desc', values.desc.trim());
-                formData.append('category', values.category);  // Déjà le nom de la catégorie
-                formData.append('stock', stock);
-                formData.append('dateRealisation', values.dateRealisation);
+                // Ajouter tous les champs au FormData
+                Object.entries(fieldsToValidate).forEach(([key, value]) => {
+                    formData.append(key, value);
+                });
 
+                // Ajouter le fichier s'il existe
                 if (selectedFile) {
                     formData.append('poster', selectedFile);
                 }
 
+                let response;
                 if (editingBook) {
-                    await bookService.updateBook(editingBook._id, formData);
-                    toast.success('Livre mis à jour avec succès');
+                    response = await bookService.updateBook(editingBook._id, formData);
                 } else {
-                    await bookService.createBook(formData);
-                    toast.success('Livre créé avec succès');
+                    response = await bookService.createBook(formData);
                 }
-                
-                handleCloseDialog();
-                loadBooks();
+
+                if (response.success) {
+                    toast.success(editingBook ? 'Livre mis à jour avec succès' : 'Livre créé avec succès');
+                    handleCloseDialog();
+                    loadBooks();
+                } else {
+                    throw new Error(response.message);
+                }
             } catch (error) {
                 console.error('Erreur:', error);
-                toast.error(error.response?.data?.message || error.message || 'Une erreur est survenue lors de la sauvegarde');
+                toast.error(error.message || 'Une erreur est survenue lors de la sauvegarde');
             } finally {
                 setLoading(false);
             }
@@ -182,27 +190,15 @@ const ManageBooks = () => {
                 desc: book.desc || '',
                 category: book.category?.name || '',
                 stock: book.stock || 0,
-                dateRealisation: book.dateRealisation 
-                    ? new Date(book.dateRealisation).toISOString().split('T')[0] 
-                    : new Date().toISOString().split('T')[0],
-                poster: ''  // On ne copie pas l'URL de l'image existante
+                dateRealisation: new Date(book.dateRealisation).toISOString().split('T')[0],
+                poster: null
             });
         } else {
             setEditingBook(null);
             setPreviewUrl('');
             formik.resetForm();
-            formik.setValues({
-                title: '',
-                author: '',
-                price: 0,
-                desc: '',
-                category: '',
-                stock: 0,
-                dateRealisation: new Date().toISOString().split('T')[0],
-                poster: ''
-            });
+            setSelectedFile(null);
         }
-        setSelectedFile(null);
         setOpenDialog(true);
     };
 
@@ -338,22 +334,17 @@ const ManageBooks = () => {
                                         helperText={formik.touched.price && formik.errors.price}
                                     />
                                 </Grid>                                <Grid item xs={12} sm={6}>
-                                    <FormControl fullWidth>
-                                        <InputLabel>Catégorie</InputLabel>
-                                        <Select
-                                            name="category"
-                                            value={formik.values.category}
-                                            label="Catégorie"
-                                            onChange={formik.handleChange}
-                                            error={formik.touched.category && Boolean(formik.errors.category)}
-                                        >
-                                            {categories.map((cat) => (
-                                                <MenuItem key={cat._id} value={cat.name}>
-                                                    {cat.name}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
+                                    <TextField
+                                        fullWidth
+                                        name="category"
+                                        label="Catégorie"
+                                        value={formik.values.category}
+                                        onChange={formik.handleChange}
+                                        onBlur={formik.handleBlur}
+                                        error={formik.touched.category && Boolean(formik.errors.category)}
+                                        helperText={formik.touched.category && formik.errors.category}
+                                        placeholder="Entrer la catégorie"
+                                    />
                                 </Grid>
 
                                 <Grid item xs={12} sm={6}>

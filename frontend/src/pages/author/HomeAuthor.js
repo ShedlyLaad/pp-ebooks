@@ -117,9 +117,7 @@ const HomeAuthor = () => {
         } catch (error) {
             console.error('Failed to load categories:', error);
         }
-    }, []);
-
-    const loadBooks = useCallback(async () => {
+    }, []);    const loadBooks = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -133,7 +131,19 @@ const HomeAuthor = () => {
         } finally {
             setLoading(false);
         }
-    }, [filters]);    useEffect(() => {
+    }, [filters]);
+
+    useEffect(() => {
+        loadCategories();
+    }, []);
+
+    useEffect(() => {
+        const debounceTimeout = setTimeout(() => {
+            loadBooks();
+        }, 300);
+
+        return () => clearTimeout(debounceTimeout);
+    }, [loadBooks]);useEffect(() => {
         loadCategories();
     }, [loadCategories]);
 

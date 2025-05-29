@@ -36,23 +36,11 @@ const EditBook = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const location = useLocation();
-    const [loading, setLoading] = useState(false);
-    const [categories, setCategories] = useState([]);
-    const [book, setBook] = useState(null);
+    const [loading, setLoading] = useState(false);    const [book, setBook] = useState(null);
 
     useEffect(() => {
         loadBookData();
-        loadCategories();
     }, [id]);
-
-    const loadCategories = async () => {
-        try {
-            const response = await bookService.getCategories();
-            setCategories(response.data);
-        } catch (error) {
-            toast.error('Échec du chargement des catégories');
-        }
-    };
 
     const loadBookData = async () => {
         setLoading(true);
@@ -167,25 +155,18 @@ const EditBook = () => {
                                 error={formik.touched.stock && Boolean(formik.errors.stock)}
                                 helperText={formik.touched.stock && formik.errors.stock}
                             />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth>
-                                <InputLabel>Category</InputLabel>
-                                <Select
-                                    name="category"
-                                    value={formik.values.category}
-                                    label="Category"
-                                    onChange={formik.handleChange}
-                                    error={formik.touched.category && Boolean(formik.errors.category)}
-                                >
-                                    {categories.map((category) => (
-                                        <MenuItem key={category._id} value={category.name}>
-                                            {category.name}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                        </Grid>                        <Grid item xs={12} sm={6}>
+                            <TextField
+                                fullWidth
+                                name="category"
+                                label="Category"
+                                value={formik.values.category}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                error={formik.touched.category && Boolean(formik.errors.category)}
+                                helperText={formik.touched.category && formik.errors.category}
+                                placeholder="Enter book category"
+                            />
                         </Grid>
 
                         <Grid item xs={12} sm={6}>

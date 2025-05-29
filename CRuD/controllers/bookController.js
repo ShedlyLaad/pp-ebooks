@@ -63,27 +63,8 @@ export const createBook = async (req, res) => {
 };
 
 export const updateBook = async (req, res) => {
-  // Wrap file upload in a Promise
-  const handleUpload = () => {
-    return new Promise((resolve, reject) => {
-      upload(req, res, (err) => {
-        if (err) {
-          if (err instanceof multer.MulterError) {
-            reject({ status: 400, message: "Erreur lors du téléchargement: " + err.message });
-          } else {
-            reject({ status: 400, message: err.message });
-          }
-        }
-        resolve();
-      });
-    });
-  };
-
   try {
-    // Handle file upload first
-    await handleUpload();
-
-    const book = await Book.findById(req.params.id);
+    const book = await Book.findById(req.params.id).populate('category');
     if (!book) {
       return res.status(404).json({ 
         success: false,
@@ -91,8 +72,8 @@ export const updateBook = async (req, res) => {
       });
     }
 
-    // Vérifier les permissions : l'admin peut tout modifier, l'auteur uniquement ses livres
-    if (req.user.role !== "admin" && (req.user.role === "author" && book.authorId.toString() !== req.user.id)) {
+    // Vérifier les permissions : l'auteur ne peut modifier que ses propres livres
+    if (req.user.role === "author" && book.authorId.toString() !== req.user.id) {
       return res.status(403).json({ 
         success: false,
         message: "Accès refusé: Vous pouvez uniquement modifier vos propres livres" 
@@ -102,10 +83,28 @@ export const updateBook = async (req, res) => {
     const { title, author: submittedAuthor, price, desc, category, dateRealisation, stock } = req.body;
 
     // Validate required fields
-    if (!title || !price || !desc || !category) {
+    if (!title || price === undefined || !desc || !category) {
       return res.status(400).json({ 
         success: false,
         message: "Tous les champs sont obligatoires (titre, prix, description et catégorie)" 
+      });
+    }
+
+    // Validate numeric values
+    const numericPrice = Number(price);
+    const numericStock = Number(stock);
+
+    if (isNaN(numericPrice) || numericPrice < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Le prix doit être un nombre positif"
+      });
+    }
+
+    if (isNaN(numericStock) || numericStock < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Le stock doit être un nombre positif"
       });
     }
 
@@ -127,18 +126,24 @@ export const updateBook = async (req, res) => {
       ? `${req.protocol}://${req.get('host')}/uploads/books/${req.file.filename}`
       : book.poster;
 
+    const updateData = {
+      title: title.trim(),
+      author: bookAuthor,
+      price: numericPrice,
+      desc: desc.trim(),
+      category: categoryDoc._id,
+      stock: numericStock,
+      poster: posterUrl
+    };
+
+    // N'ajouter dateRealisation que si une valeur valide est fournie
+    if (dateRealisation && !isNaN(new Date(dateRealisation))) {
+      updateData.dateRealisation = dateRealisation;
+    }
+
     const updatedBook = await Book.findByIdAndUpdate(
       req.params.id,
-      {
-        title: title.trim(),
-        author: bookAuthor,
-        price: Number(price),
-        desc: desc.trim(),
-        category: categoryDoc._id,
-        dateRealisation: dateRealisation || book.dateRealisation,
-        stock: Number(stock) || 0,
-        poster: posterUrl
-      },
+      updateData,
       { new: true }
     ).populate('category');
 
@@ -176,7 +181,6 @@ export const getBookById = async (req, res) => {
     res.status(500).json({ error: "Internal Server ERROR!" });
   }
 };
-// ...existing code...
 
 export const getBookByIdPublic = async (req, res) => {
   try {
@@ -216,8 +220,6 @@ export const getBookByIdPublic = async (req, res) => {
     });
   }
 };
-
-// ...existing code...
 
 export const getAllBooks = async (req, res) => {
   try {

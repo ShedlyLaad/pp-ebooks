@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Container,
@@ -7,7 +7,11 @@ import {
     TextField,
     Button,
     Grid,
-    Box
+    Box,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem
 } from '@mui/material';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
@@ -46,17 +50,31 @@ const AddBook = () => {
             category: '',
             dateRealisation: new Date().toISOString().split('T')[0]
         },
-        validationSchema,
-        onSubmit: async (values) => {
+        validationSchema,        onSubmit: async (values) => {
             setLoading(true);
             try {
-                // Create FormData object
                 const formData = new FormData();
                 
-                // Add all form fields to FormData
-                Object.keys(values).forEach(key => {
-                    formData.append(key, values[key]);
-                });
+                // Validate and convert numeric values
+                const price = parseFloat(values.price);
+                const stock = parseInt(values.stock);
+                
+                if (isNaN(price) || price < 0) {
+                    toast.error('Le prix doit être un nombre valide et positif');
+                    return;
+                }
+                if (isNaN(stock) || stock < 0) {
+                    toast.error('Le stock doit être un nombre valide et positif');
+                    return;
+                }
+
+                // Add all form fields to FormData with proper formatting
+                formData.append('title', values.title.trim());
+                formData.append('desc', values.desc.trim());
+                formData.append('price', price);
+                formData.append('stock', stock);
+                formData.append('category', values.category.trim());
+                formData.append('dateRealisation', new Date(values.dateRealisation).toISOString());
 
                 // Add the file if it exists
                 if (selectedFile) {
@@ -66,11 +84,15 @@ const AddBook = () => {
                 // Send the request
                 const response = await bookService.createBook(formData);
                 
-                toast.success('Livre ajouté avec succès');
-                navigate('/author/my-books');
+                if (response.success) {
+                    toast.success('Livre ajouté avec succès');
+                    navigate('/author/my-books');
+                } else {
+                    throw new Error(response.message);
+                }
             } catch (error) {
                 console.error('Create book error:', error);
-                toast.error(error.response?.data?.message || 'Erreur lors de l\'ajout du livre');
+                toast.error(error.message || 'Erreur lors de l\'ajout du livre');
             } finally {
                 setLoading(false);
             }
@@ -150,9 +172,7 @@ const AddBook = () => {
                                 error={formik.touched.stock && Boolean(formik.errors.stock)}
                                 helperText={formik.touched.stock && formik.errors.stock}
                             />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6}>
+                        </Grid>                        <Grid item xs={12} sm={6}>
                             <TextField
                                 fullWidth
                                 name="category"
@@ -162,6 +182,7 @@ const AddBook = () => {
                                 onBlur={formik.handleBlur}
                                 error={formik.touched.category && Boolean(formik.errors.category)}
                                 helperText={formik.touched.category && formik.errors.category}
+                                placeholder="Enter book category"
                             />
                         </Grid>
 
