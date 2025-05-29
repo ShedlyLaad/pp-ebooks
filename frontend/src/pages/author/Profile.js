@@ -179,15 +179,37 @@ const Profile = () => {
     };
 
     const StatCard = ({ icon: Icon, title, value, color }) => (
-        <Card sx={{ height: '100%', bgcolor: '#f1efe9', border: '1px solid rgba(231, 72, 111, 0.1)' }}>
+        <Card sx={{ 
+            height: '100%', 
+            bgcolor: '#f1efe9', 
+            border: '1px solid rgba(231, 72, 111, 0.1)',
+            minHeight: { xs: 80, sm: 100 }
+        }}>
             <CardContent>
-                <Stack direction="row" spacing={2} alignItems="center">
-                    <Icon sx={{ fontSize: 40, color: color || '#e7486f' }} />
+                <Stack 
+                    direction="row" 
+                    spacing={{ xs: 1, sm: 2 }} 
+                    alignItems="center"
+                >
+                    <Icon sx={{ 
+                        fontSize: { xs: 30, sm: 40 }, 
+                        color: color || '#e7486f' 
+                    }} />
                     <Box>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            fontSize={{ xs: '0.75rem', sm: '0.875rem' }}
+                        >
                             {title}
                         </Typography>
-                        <Typography variant="h5" sx={{ color: color || '#e7486f' }}>
+                        <Typography 
+                            variant="h5" 
+                            sx={{ 
+                                color: color || '#e7486f',
+                                fontSize: { xs: '1.25rem', sm: '1.5rem' }
+                            }}
+                        >
                             {statsLoading ? <CircularProgress size={20} /> : value}
                         </Typography>
                     </Box>

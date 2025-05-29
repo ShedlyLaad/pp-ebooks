@@ -17,18 +17,18 @@ import { bookService } from '../../services/bookService';
 import { toast } from 'react-toastify';
 
 const validationSchema = Yup.object({
-    title: Yup.string().required('Le titre est obligatoire'),
-    desc: Yup.string().required('La description est obligatoire'),
+    title: Yup.string().required('Title is required'),
+    desc: Yup.string().required('Description is required'),
     price: Yup.number()
-        .required('Le prix est obligatoire')
-        .min(0, 'Le prix doit être positif'),
+        .required('Price is required')
+        .min(0, 'Price must be positive'),
     stock: Yup.number()
-        .required('Le stock est obligatoire')
-        .min(0, 'Le stock doit être positif ou nul'),
+        .required('Stock is required')
+        .min(0, 'Stock must be zero or positive'),
     category: Yup.string()
-        .required('La catégorie est obligatoire')
-        .min(2, 'La catégorie doit contenir au moins 2 caractères'),
-    dateRealisation: Yup.date().required('La date de publication est obligatoire')
+        .required('Category is required')
+        .min(2, 'Category must contain at least 2 characters'),
+    dateRealisation: Yup.date().required('Publication date is required')
 });
 
 const AddBook = () => {
@@ -92,10 +92,21 @@ const AddBook = () => {
     if (loading) return <LoadingSpinner />;
 
     return (
-        <Container maxWidth="md">
-            <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Ajouter un nouveau livre
+        <Container maxWidth="md" sx={{
+            py: 4,
+            minHeight: '100vh',
+            background: 'linear-gradient(135deg, rgba(231, 72, 111, 0.05) 0%, rgba(241, 239, 233, 0.05) 100%)',
+        }}>
+            <Paper elevation={3} sx={{
+                p: 4,
+                mt: 4,
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(231, 72, 111, 0.1)',
+                borderRadius: '20px',
+            }}>
+                <Typography variant="h4" gutterBottom sx={{ color: '#e7486f' }}>
+                    Add New Book
                 </Typography>
 
                 <form onSubmit={formik.handleSubmit}>
@@ -104,7 +115,7 @@ const AddBook = () => {
                             <TextField
                                 fullWidth
                                 name="title"
-                                label="Titre"
+                                label="Title"
                                 value={formik.values.title}
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
@@ -117,7 +128,7 @@ const AddBook = () => {
                             <TextField
                                 fullWidth
                                 name="price"
-                                label="Prix"
+                                label="Price"
                                 type="number"
                                 value={formik.values.price}
                                 onChange={formik.handleChange}
@@ -145,7 +156,7 @@ const AddBook = () => {
                             <TextField
                                 fullWidth
                                 name="category"
-                                label="Catégorie"
+                                label="Category"
                                 value={formik.values.category}
                                 onChange={formik.handleChange}
                                 onBlur={formik.handleBlur}
@@ -158,7 +169,7 @@ const AddBook = () => {
                             <TextField
                                 fullWidth
                                 name="dateRealisation"
-                                label="Date de publication"
+                                label="Publication Date"
                                 type="date"
                                 value={formik.values.dateRealisation}
                                 onChange={formik.handleChange}
@@ -206,7 +217,7 @@ const AddBook = () => {
                                 startIcon={<CloudUploadIcon />}
                                 sx={{ width: '100%' }}
                             >
-                                {selectedFile ? 'Changer l\'image' : 'Ajouter une image'}
+                                {selectedFile ? 'Change Image' : 'Add Image'}
                                 <input
                                     type="file"
                                     hidden
@@ -222,7 +233,7 @@ const AddBook = () => {
                                     variant="outlined"
                                     onClick={() => navigate('/author/my-books')}
                                 >
-                                    Annuler
+                                    Cancel
                                 </Button>
                                 <Button
                                     type="submit"
@@ -230,7 +241,7 @@ const AddBook = () => {
                                     color="primary"
                                     disabled={loading || !formik.isValid}
                                 >
-                                    Ajouter le livre
+                                    Add Book
                                 </Button>
                             </Box>
                         </Grid>

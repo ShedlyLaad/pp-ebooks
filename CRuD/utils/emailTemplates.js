@@ -8,7 +8,8 @@ export const emailTemplates = {
             
             <div style="margin-bottom: 30px;">
                 <p style="margin-bottom: 15px;">Dear ${user.name},</p>
-                <p style="color: #666; line-height: 1.5;">Your order has been successfully placed. We'll process it right away.</p>
+                <p style="color: #666; line-height: 1.5;">Your order has been successfully placed and is now pending confirmation. We'll process it as soon as possible.</p>
+                <p style="color: #666; line-height: 1.5;">Current status: <strong style="color: #ed6c02;">PENDING</strong></p>
             </div>
 
             <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">

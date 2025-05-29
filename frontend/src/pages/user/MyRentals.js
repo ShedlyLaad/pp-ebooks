@@ -223,9 +223,10 @@ const MyRentals = () => {
                                             <StyledTableCell>
                                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                                                     <Box 
-                                                        component="img"
-                                                        src={rental.bookId?.poster || '/default-book.jpg'}
-                                                        alt={rental.bookId?.title || 'Book'}
+                                                       component="img"
+                    src={rental.bookId?.poster ? `http://localhost:8000/books/${rental.bookId?.poster.replace(/^.*[\\\/]/, '')}` : '/placeholder-book.jpg'}
+                    title={rental.bookId?.title}
+                    alt={rental.bookId?.title}
                                                         sx={{ 
                                                             width: 50, 
                                                             height: 70, 
@@ -234,6 +235,7 @@ const MyRentals = () => {
                                                             mr: 2
                                                         }}
                                                     />
+                    
                                                     <Box>
                                                         <Typography 
                                                             variant="subtitle2"

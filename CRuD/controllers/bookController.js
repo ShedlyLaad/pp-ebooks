@@ -1,39 +1,15 @@
 import Book from "../model/bookModel.js";
 import Category from "../model/categoryModel.js";
 import Order from "../model/orderModel.js";
-import multer from "multer";
-import path from "path";
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/books/');
-  },
-  filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5000000 },
-  fileFilter: function (req, file, cb) {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const mimetype = filetypes.test(file.mimetype);
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    
-    if (mimetype && extname) {
-      return cb(null, true);
-    }
-    cb(new Error("Seules les images sont autorisées"));
-  }
-}).single('poster');
 
 export const createBook = async (req, res) => {
   try {
-    const { title, price, desc, category, dateRealisation, stock } = req.body;
+
+    const { title, price, desc, category, dateRealisation, stock, author: submittedAuthor } = req.body;
 
     if (!title || !price || !desc || !category) {
       return res.status(400).json({ 
+        success: false,
         message: "Tous les champs sont obligatoires (titre, prix, description et catégorie)" 
       });
     }
@@ -48,16 +24,24 @@ export const createBook = async (req, res) => {
       await categoryDoc.save();
     }
 
+    // Si c'est un admin, il peut spécifier l'auteur, sinon on utilise le nom de l'utilisateur
+    const bookAuthor = req.user.role === 'admin' ? (submittedAuthor || req.user.name) : req.user.name;
+
+    // Prepare poster URL if file was uploaded
+    const posterUrl = req.file 
+      ? `${req.protocol}://${req.get('host')}/uploads/books/${req.file.filename}`
+      : null;
+
     const newBook = new Book({
       title: title.trim(),
-      author: req.user.name,
+      author: bookAuthor,
       price: Number(price),
       desc: desc.trim(),
       category: categoryDoc._id,
       dateRealisation: dateRealisation || new Date(),
       authorId: req.user.id,
       stock: Number(stock) || 0,
-      poster: req.file ? `/uploads/books/${req.file.filename}` : null
+      poster: posterUrl
     });
 
     const savedBook = await newBook.save();
@@ -70,75 +54,104 @@ export const createBook = async (req, res) => {
     });
   } catch (error) {
     console.error("Erreur serveur:", error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
-      message: "Erreur lors de la création du livre",
+      message: error.message || "Erreur lors de la création du livre",
       error: error.message
     });
   }
 };
 
 export const updateBook = async (req, res) => {
+  // Wrap file upload in a Promise
+  const handleUpload = () => {
+    return new Promise((resolve, reject) => {
+      upload(req, res, (err) => {
+        if (err) {
+          if (err instanceof multer.MulterError) {
+            reject({ status: 400, message: "Erreur lors du téléchargement: " + err.message });
+          } else {
+            reject({ status: 400, message: err.message });
+          }
+        }
+        resolve();
+      });
+    });
+  };
+
   try {
-    const { title, author, price, desc, category, dateRealisation, stock } = req.body;
-    
+    // Handle file upload first
+    await handleUpload();
+
     const book = await Book.findById(req.params.id);
     if (!book) {
-      return res.status(404).json({ message: "Livre non trouvé" });
-    }
-
-    if (req.user.role === "author" && book.authorId.toString() !== req.user.id) {
-      return res.status(403).json({ message: "Accès refusé: Vous pouvez uniquement modifier vos propres livres" });
-    }
-
-    let categoryDoc;
-    if (category) {
-      categoryDoc = await Category.findOne({ 
-        name: { $regex: new RegExp(`^${category.trim()}$`, 'i') }
+      return res.status(404).json({ 
+        success: false,
+        message: "Livre non trouvé" 
       });
-
-      if (!categoryDoc) {
-        categoryDoc = new Category({ name: category.trim() });
-        await categoryDoc.save();
-      }
     }
 
-    const updateData = {
-      title: title?.trim(),
-      author: author?.trim(),
-      price: price ? Number(price) : undefined,
-      desc: desc?.trim(),
-      category: categoryDoc ? categoryDoc._id : undefined,
-      dateRealisation: dateRealisation || undefined,
-      stock: stock ? Number(stock) : undefined
-    };
-
-    if (req.file) {
-      updateData.poster = `/uploads/books/${req.file.filename}`;
+    // Vérifier les permissions : l'admin peut tout modifier, l'auteur uniquement ses livres
+    if (req.user.role !== "admin" && (req.user.role === "author" && book.authorId.toString() !== req.user.id)) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Accès refusé: Vous pouvez uniquement modifier vos propres livres" 
+      });
     }
 
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
-      }
+    const { title, author: submittedAuthor, price, desc, category, dateRealisation, stock } = req.body;
+
+    // Validate required fields
+    if (!title || !price || !desc || !category) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Tous les champs sont obligatoires (titre, prix, description et catégorie)" 
+      });
+    }
+
+    // Find or create category
+    let categoryDoc = await Category.findOne({ 
+      name: { $regex: new RegExp(`^${category.trim()}$`, 'i') }
     });
+
+    if (!categoryDoc) {
+      categoryDoc = new Category({ name: category.trim() });
+      await categoryDoc.save();
+    }
+
+    // Si c'est un admin, il peut spécifier l'auteur, sinon garder l'auteur actuel
+    const bookAuthor = req.user.role === 'admin' ? (submittedAuthor || book.author) : book.author;
+
+    // Prepare poster URL if file was uploaded
+    const posterUrl = req.file 
+      ? `${req.protocol}://${req.get('host')}/uploads/books/${req.file.filename}`
+      : book.poster;
 
     const updatedBook = await Book.findByIdAndUpdate(
       req.params.id,
-      updateData,
+      {
+        title: title.trim(),
+        author: bookAuthor,
+        price: Number(price),
+        desc: desc.trim(),
+        category: categoryDoc._id,
+        dateRealisation: dateRealisation || book.dateRealisation,
+        stock: Number(stock) || 0,
+        poster: posterUrl
+      },
       { new: true }
-    ).populate("category");
+    ).populate('category');
 
-    res.status(200).json({
+    res.json({
       success: true,
       message: "Livre mis à jour avec succès",
       book: updatedBook
     });
   } catch (error) {
-    console.error("Erreur de mise à jour:", error);
-    res.status(500).json({ 
+    console.error("Erreur serveur:", error);
+    res.status(error.status || 500).json({
       success: false,
-      message: "Erreur lors de la mise à jour du livre",
+      message: error.message || "Erreur lors de la mise à jour du livre",
       error: error.message
     });
   }
@@ -163,6 +176,48 @@ export const getBookById = async (req, res) => {
     res.status(500).json({ error: "Internal Server ERROR!" });
   }
 };
+// ...existing code...
+
+export const getBookByIdPublic = async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id)
+      .populate("category")
+      .populate("authorId", "name"); // On ne renvoie que le nom de l'auteur pour la version publique
+
+    if (!book) {
+      return res.status(404).json({
+        success: false,
+        message: "Livre non trouvé"
+      });
+    }
+
+    const bookData = {
+      ...book.toObject(),
+      poster: book.poster ? `${req.protocol}://${req.get('host')}/uploads/books/${book.poster}` : null,
+      // On supprime les informations sensibles si nécessaire
+      authorName: book.author,
+      category: book.category.name
+    };
+
+    // Supprime les champs sensibles ou inutiles pour la version publique
+    delete bookData.authorId;
+    delete bookData.__v;
+
+    res.status(200).json({
+      success: true,
+      data: bookData
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération du livre:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Erreur lors de la récupération du livre",
+      error: error.message 
+    });
+  }
+};
+
+// ...existing code...
 
 export const getAllBooks = async (req, res) => {
   try {
@@ -193,10 +248,14 @@ export const searchBooks = async (req, res) => {
         { title: { $regex: search, $options: 'i' } },
         { author: { $regex: search, $options: 'i' } }
       ];
-    }
-
-    if (category) {
-      const categoryDoc = await Category.findOne({ name: category });
+    }    if (category) {
+      // Handle both ID and name for backward compatibility
+      let categoryDoc;
+      try {
+        categoryDoc = await Category.findById(category);
+      } catch {
+        categoryDoc = await Category.findOne({ name: { $regex: new RegExp(`^${category}$`, 'i') } });
+      }
       if (categoryDoc) {
         query.category = categoryDoc._id;
       }

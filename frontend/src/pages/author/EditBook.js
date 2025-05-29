@@ -20,16 +20,16 @@ import { bookService } from '../../services/bookService';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const validationSchema = Yup.object({
-    title: Yup.string().required('Le titre est obligatoire'),
-    desc: Yup.string().required('La description est obligatoire'),
+    title: Yup.string().required('Title is required'),
+    desc: Yup.string().required('Description is required'),
     price: Yup.number()
-        .required('Le prix est obligatoire')
-        .min(0, 'Le prix doit être positif'),
+        .required('Price is required')
+        .min(0, 'Price must be positive'),
     stock: Yup.number()
-        .required('Le stock est obligatoire')
-        .min(0, 'Le stock doit être positif ou nul'),
-    category: Yup.string().required('La catégorie est obligatoire'),
-    dateRealisation: Yup.date().required('La date de publication est obligatoire')
+        .required('Stock is required')
+        .min(0, 'Stock must be zero or positive'),
+    category: Yup.string().required('Category is required'),
+    dateRealisation: Yup.date().required('Publication date is required')
 });
 
 const EditBook = () => {
@@ -112,10 +112,21 @@ const EditBook = () => {
     if (loading) return <LoadingSpinner />;
 
     return (
-        <Container maxWidth="md">
-            <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Modifier le livre
+        <Container maxWidth="md" sx={{
+            py: 4,
+            minHeight: '100vh',
+            background: 'linear-gradient(135deg, rgba(231, 72, 111, 0.05) 0%, rgba(241, 239, 233, 0.05) 100%)',
+        }}>
+            <Paper elevation={3} sx={{
+                p: 4,
+                mt: 4,
+                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.95) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(231, 72, 111, 0.1)',
+                borderRadius: '20px',
+            }}>
+                <Typography variant="h4" gutterBottom sx={{ color: '#e7486f' }}>
+                    Edit Book
                 </Typography>
 
                 <form onSubmit={formik.handleSubmit}>
@@ -124,7 +135,7 @@ const EditBook = () => {
                             <TextField
                                 fullWidth
                                 name="title"
-                                label="Titre"
+                                label="Title"
                                 value={formik.values.title}
                                 onChange={formik.handleChange}
                                 error={formik.touched.title && Boolean(formik.errors.title)}
@@ -136,7 +147,7 @@ const EditBook = () => {
                             <TextField
                                 fullWidth
                                 name="price"
-                                label="Prix"
+                                label="Price"
                                 type="number"
                                 value={formik.values.price}
                                 onChange={formik.handleChange}
@@ -160,11 +171,11 @@ const EditBook = () => {
 
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth>
-                                <InputLabel>Catégorie</InputLabel>
+                                <InputLabel>Category</InputLabel>
                                 <Select
                                     name="category"
                                     value={formik.values.category}
-                                    label="Catégorie"
+                                    label="Category"
                                     onChange={formik.handleChange}
                                     error={formik.touched.category && Boolean(formik.errors.category)}
                                 >
@@ -181,7 +192,7 @@ const EditBook = () => {
                             <TextField
                                 fullWidth
                                 name="dateRealisation"
-                                label="Date de publication"
+                                label="Publication date"
                                 type="date"
                                 value={formik.values.dateRealisation}
                                 onChange={formik.handleChange}
@@ -211,7 +222,7 @@ const EditBook = () => {
                                     variant="outlined"
                                     onClick={() => navigate('/author/my-books')}
                                 >
-                                    Annuler
+                                    Cancel
                                 </Button>
                                 <Button
                                     type="submit"
@@ -219,7 +230,7 @@ const EditBook = () => {
                                     color="primary"
                                     disabled={!formik.isValid || formik.isSubmitting}
                                 >
-                                    Mettre à jour
+                                    Update
                                 </Button>
                             </Box>
                         </Grid>

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../auth/AuthContext';
+import { bookService } from '../../services/bookService';
+import { categoryService } from '../../services/categoryService'; // Ajout de l'import
 import {
     Container,
     Grid,
@@ -18,9 +20,9 @@ import {
     MenuItem,
 } from '@mui/material';
 import { ArrowForward, ArrowBack, ArrowForwardIos, Search as SearchIcon } from '@mui/icons-material';
-import { bookService } from '../../services/bookService';
 import BookCard from '../../components/BookCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import Banner from '../../components/Banner';
 
 const MainContainer = styled(Box)(({ theme }) => ({
     background: 'linear-gradient(90deg, #f1efe9 0%, #f9f7f2 100%)',
@@ -48,31 +50,71 @@ const FilterPaper = styled(Paper)({
     boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
 });
 
+const SearchField = styled(TextField)({
+    '& .MuiOutlinedInput-root': {
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(8px)',
+        borderRadius: '12px',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        },
+        '&.Mui-focused': {
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+        }
+    }
+});
+
+const FilterSelect = styled(Select)({
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: '12px',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    },
+    '&.Mui-focused': {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    }
+});
+
 const HomeUser = () => {
     const { user } = useAuth();
     const [books, setBooks] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({
+    const [error, setError] = useState(null);    const [filters, setFilters] = useState({
         search: '',
         sortBy: 'newest',
+        category: ''
     });
     const [actionLoading, setActionLoading] = useState({ type: null, id: null });
+    const [categories, setCategories] = useState([]);    const loadCategories = useCallback(async () => {
+        try {
+            const categoriesResponse = await categoryService.getCategories();
+            setCategories(categoriesResponse);
+        } catch (error) {
+            console.error('Failed to load categories:', error);
+        }
+    }, []);
 
     const loadBooks = useCallback(async () => {
         setLoading(true);
-        try {
-            const response = await bookService.searchBooks({
-                search: filters.search,
-                sortBy: filters.sortBy,
+        setError(null);
+        try {            
+            const booksResponse = await bookService.searchBooks({
+                ...filters,
+                category: filters.category || undefined
             });
-            setBooks(Array.isArray(response) ? response : []); // Handle the response structure from searchBooks
+            setBooks(Array.isArray(booksResponse) ? booksResponse : []);
         } catch (error) {
             setError(error.message || 'Failed to load books');
         } finally {
             setLoading(false);
         }
-    }, [filters]);
+    }, [filters]);    useEffect(() => {
+        loadCategories();
+    }, [loadCategories]);
 
     useEffect(() => {
         const debounceTimeout = setTimeout(() => {
@@ -91,6 +133,7 @@ const HomeUser = () => {
 
     return (
         <MainContainer>
+            <Banner userType="reader" />
             <ContentWrapper maxWidth="xl">                <Box mb={6}>
                     <Box sx={{ 
                         display: 'flex', 
@@ -130,42 +173,49 @@ const HomeUser = () => {
                     </Typography>
                 </Box>
 
-                <FilterPaper>
+                <FilterPaper sx={{ boxShadow: 'none', backgroundColor: 'transparent' }}>
                     <Grid container spacing={3} alignItems="center">
-                        <Grid item xs={12} md={6}>
-                            <TextField
+                        <Grid item xs={12} md={4}>
+                            <SearchField
                                 fullWidth
-                                label="Search Books"
+                                placeholder="Search books..."
                                 value={filters.search}
                                 onChange={(e) => handleFilterChange('search', e.target.value)}
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
-                                            <SearchIcon />
+                                            <SearchIcon sx={{ color: 'text.secondary' }} />
                                         </InputAdornment>
                                     ),
                                 }}
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                    }
-                                }}
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid item xs={12} md={4}>
                             <FormControl fullWidth>
-                                <InputLabel>Sort By Date</InputLabel>
-                                <Select
+                                <FilterSelect
+                                    value={filters.category || ''}
+                                    onChange={(e) => handleFilterChange('category', e.target.value)}
+                                    displayEmpty
+                                    renderValue={(selected) => selected || 'All Categories'}
+                                >                                    <MenuItem value="">All Categories</MenuItem>
+                                    {categories.map((category) => (
+                                        <MenuItem key={category._id} value={category.name}>
+                                            {category.name}
+                                        </MenuItem>
+                                    ))}
+                                </FilterSelect>
+                            </FormControl>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <FormControl fullWidth>
+                                <FilterSelect
                                     value={filters.sortBy}
                                     onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                                    label="Sort By Date"
-                                    sx={{
-                                        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                    }}
+                                    displayEmpty
                                 >
                                     <MenuItem value="newest">Newest First</MenuItem>
                                     <MenuItem value="oldest">Oldest First</MenuItem>
-                                </Select>
+                                </FilterSelect>
                             </FormControl>
                         </Grid>
                     </Grid>

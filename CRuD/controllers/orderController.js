@@ -29,12 +29,10 @@ export const createOrder = async (req, res) => {
           message: `Insufficient stock for book: ${book.title}. Available: ${book.stock}`
         });
       }
-    }
-
-    const newOrder = new Order({
+    }    const newOrder = new Order({
       userId: req.user.id,
       orderItems,
-      status: "confirmed",
+      status: "pending",
       createdAt: new Date()
     });
 

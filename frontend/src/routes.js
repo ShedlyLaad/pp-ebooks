@@ -8,6 +8,7 @@ import Login from './pages/common/Login';
 import Register from './pages/common/Register';
 import AboutUs from './pages/common/AboutUs';
 import ContactUs from './pages/common/ContactUs';
+import BookDetails from './pages/common/BookDetails';
 
 // User Pages
 import HomeUser from './pages/user/HomeUser';
@@ -39,23 +40,27 @@ const RouteConfig = () => {
             children: [
                 { path: 'login', element: <Login /> },
                 { path: 'register', element: <Register /> },
-                { path: 'about', element: <AboutUs /> },
                 { path: 'contact', element: <ContactUs /> },
                 { path: '', element: <Navigate to="/user/home" /> }
             ]
         },
-        {            path: '/user',
+        {
+            path: '/user',
             element: <UserLayout />,
             children: [
                 { path: '', element: <HomeUser /> },
                 { path: 'home', element: <HomeUser /> },
                 { path: 'my-rentals', element: <MyRentals /> },
                 { path: 'my-orders', element: <MyOrders /> },
+                                { path: 'books/:id', element: <BookDetails /> },
+                { path: 'about', element: <AboutUs /> },
+
                 { path: 'profile', element: <Profile /> }
             ],
             roles: ['user', 'admin', 'author']
     },
-    {        path: '/admin',
+    {
+        path: '/admin',
         element: <AdminLayout />,
         children: [
             { path: '', element: <HomeAdmin /> },
@@ -68,7 +73,8 @@ const RouteConfig = () => {
         ],
         roles: ['admin']
     },
-    {        path: '/author',
+    {
+        path: '/author',
         element: <UserLayout />,
         children: [
             { path: '', element: <HomeAuthor /> },

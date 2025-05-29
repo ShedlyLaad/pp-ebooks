@@ -31,14 +31,32 @@ import { bookService } from '../../services/bookService';
 import LoadingSpinner from '../../components/LoadingSpinner';
 
 const validationSchema = Yup.object({
-    title: Yup.string().required('Le titre est obligatoire'),
-    author: Yup.string().required("L'auteur est obligatoire"),
-    price: Yup.number().required('Le prix est obligatoire').min(0, 'Le prix doit être positif'),
-    desc: Yup.string().required('La description est obligatoire'),
-    category: Yup.string().required('La catégorie est obligatoire').min(2, 'La catégorie doit contenir au moins 2 caractères'),
-    stock: Yup.number().required('Le stock est obligatoire').min(0, 'Le stock doit être positif ou nul'),
-    dateRealisation: Yup.date().required('La date de publication est obligatoire'),
-    poster: Yup.string()
+    title: Yup.string()
+        .required('Le titre est obligatoire')
+        .min(2, 'Le titre doit contenir au moins 2 caractères'),
+    author: Yup.string()
+        .required("L'auteur est obligatoire")
+        .min(2, "Le nom de l'auteur doit contenir au moins 2 caractères"),
+    price: Yup.number()
+        .required('Le prix est obligatoire')
+        .min(0, 'Le prix doit être positif')
+        .typeError('Le prix doit être un nombre'),
+    desc: Yup.string()
+        .required('La description est obligatoire')
+        .min(10, 'La description doit contenir au moins 10 caractères'),
+    category: Yup.string()
+        .required('La catégorie est obligatoire')
+        .min(2, 'La catégorie doit contenir au moins 2 caractères'),
+    stock: Yup.number()
+        .required('Le stock est obligatoire')
+        .min(0, 'Le stock doit être positif ou nul')
+        .integer('Le stock doit être un nombre entier')
+        .typeError('Le stock doit être un nombre'),
+    dateRealisation: Yup.date()
+        .required('La date de publication est obligatoire')
+        .max(new Date(), 'La date ne peut pas être dans le futur')
+        .typeError('Date invalide'),
+    poster: Yup.mixed()
 });
 
 const ManageBooks = () => {
@@ -93,9 +111,7 @@ const ManageBooks = () => {
             };
             reader.readAsDataURL(file);
         }
-    };
-
-    const formik = useFormik({
+    };    const formik = useFormik({
         initialValues: {
             title: '',
             author: '',
@@ -104,18 +120,36 @@ const ManageBooks = () => {
             category: '',
             stock: '',
             dateRealisation: new Date().toISOString().split('T')[0],
-            poster: ''
+            poster: null
         },
-        validationSchema,
-        onSubmit: async (values) => {
+        validationSchema,        onSubmit: async (values) => {
             try {
+                setLoading(true);
                 const formData = new FormData();
-                Object.keys(values).forEach(key => {
-                    if (key !== 'poster') {
-                        formData.append(key, values[key]);
-                    }
-                });
                 
+                // Valider et convertir les champs numériques
+                const price = parseFloat(values.price);
+                const stock = parseInt(values.stock);
+                
+                if (isNaN(price) || price < 0) {
+                    toast.error('Le prix doit être un nombre valide et positif');
+                    return;
+                }
+                
+                if (isNaN(stock) || stock < 0) {
+                    toast.error('Le stock doit être un nombre valide et positif');
+                    return;
+                }
+
+                // Ajouter les champs au FormData
+                formData.append('title', values.title.trim());
+                formData.append('author', values.author.trim());
+                formData.append('price', price);
+                formData.append('desc', values.desc.trim());
+                formData.append('category', values.category);  // Déjà le nom de la catégorie
+                formData.append('stock', stock);
+                formData.append('dateRealisation', values.dateRealisation);
+
                 if (selectedFile) {
                     formData.append('poster', selectedFile);
                 }
@@ -127,35 +161,48 @@ const ManageBooks = () => {
                     await bookService.createBook(formData);
                     toast.success('Livre créé avec succès');
                 }
+                
                 handleCloseDialog();
                 loadBooks();
             } catch (error) {
-                const errorMessage = error?.response?.data?.message || error.message || 'Échec de la sauvegarde';
-                toast.error(errorMessage);
+                console.error('Erreur:', error);
+                toast.error(error.response?.data?.message || error.message || 'Une erreur est survenue lors de la sauvegarde');
+            } finally {
+                setLoading(false);
             }
         },
-    });
-
-    const handleOpenDialog = (book = null) => {
+    });    const handleOpenDialog = (book = null) => {
         if (book) {
             setEditingBook(book);
             setPreviewUrl(book.poster || '');
             formik.setValues({
                 title: book.title || '',
                 author: book.author || '',
-                price: book.price || '',
+                price: book.price || 0,
                 desc: book.desc || '',
                 category: book.category?.name || '',
-                stock: book.stock || '',
-                dateRealisation: book.dateRealisation ? new Date(book.dateRealisation).toISOString().split('T')[0] : '',
-                poster: book.poster || ''
+                stock: book.stock || 0,
+                dateRealisation: book.dateRealisation 
+                    ? new Date(book.dateRealisation).toISOString().split('T')[0] 
+                    : new Date().toISOString().split('T')[0],
+                poster: ''  // On ne copie pas l'URL de l'image existante
             });
         } else {
             setEditingBook(null);
             setPreviewUrl('');
             formik.resetForm();
-            formik.setFieldValue('dateRealisation', new Date().toISOString().split('T')[0]);
+            formik.setValues({
+                title: '',
+                author: '',
+                price: 0,
+                desc: '',
+                category: '',
+                stock: 0,
+                dateRealisation: new Date().toISOString().split('T')[0],
+                poster: ''
+            });
         }
+        setSelectedFile(null);
         setOpenDialog(true);
     };
 
@@ -165,16 +212,20 @@ const ManageBooks = () => {
         setSelectedFile(null);
         setPreviewUrl('');
         formik.resetForm();
-    };
-
-    const handleDelete = async (book) => {
-        if (window.confirm('Are you sure you want to delete this book?')) {
+    };    const handleDelete = async (book) => {
+        if (window.confirm('Êtes-vous sûr de vouloir supprimer ce livre ?')) {
             try {
-                await bookService.deleteBook(book._id);
-                toast.success('Book deleted successfully');
-                loadBooks();
+                const result = await bookService.deleteBook(book._id);
+                if (result.success) {
+                    toast.success('Livre supprimé avec succès');
+                    loadBooks();
+                } else {
+                    toast.error(result.message || 'Échec de la suppression');
+                }
             } catch (error) {
-                toast.error('Failed to delete book');
+                console.error('Erreur lors de la suppression:', error);
+                const errorMessage = error.response?.data?.message || error.message || 'Échec de la suppression';
+                toast.error(errorMessage);
             }
         }
     };
@@ -286,25 +337,22 @@ const ManageBooks = () => {
                                         error={formik.touched.price && Boolean(formik.errors.price)}
                                         helperText={formik.touched.price && formik.errors.price}
                                     />
-                                </Grid>
-
-                                <Grid item xs={12} sm={6}>
+                                </Grid>                                <Grid item xs={12} sm={6}>
                                     <FormControl fullWidth>
-                                        <TextField
-                                            select
+                                        <InputLabel>Catégorie</InputLabel>
+                                        <Select
                                             name="category"
-                                            label="Catégorie"
                                             value={formik.values.category}
+                                            label="Catégorie"
                                             onChange={formik.handleChange}
                                             error={formik.touched.category && Boolean(formik.errors.category)}
-                                            helperText={formik.touched.category && formik.errors.category}
                                         >
-                                            {categories.map((category) => (
-                                                <MenuItem key={category._id} value={category.name}>
-                                                    {category.name}
+                                            {categories.map((cat) => (
+                                                <MenuItem key={cat._id} value={cat.name}>
+                                                    {cat.name}
                                                 </MenuItem>
                                             ))}
-                                        </TextField>
+                                        </Select>
                                     </FormControl>
                                 </Grid>
 
@@ -347,15 +395,17 @@ const ManageBooks = () => {
                                         error={formik.touched.desc && Boolean(formik.errors.desc)}
                                         helperText={formik.touched.desc && formik.errors.desc}
                                     />
-                                </Grid>
-
-                                <Grid item xs={12}>
+                                </Grid>                                <Grid item xs={12}>
                                     <Box sx={{ textAlign: 'center', mb: 2 }}>
-                                        {previewUrl && (
+                                        {(previewUrl || editingBook?.poster) && (
                                             <Box
                                                 component="img"
-                                                src={previewUrl}
+                                                src={previewUrl || editingBook?.poster}
                                                 alt="Preview"
+                                                onError={(e) => {
+                                                    e.target.onerror = null;
+                                                    e.target.src = '/default-book.jpg';
+                                                }}
                                                 sx={{
                                                     maxWidth: '100%',
                                                     height: 200,

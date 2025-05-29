@@ -8,7 +8,6 @@ import {
     Box,
     Chip,
     styled,
-    IconButton,
     Dialog,
     DialogTitle,
     DialogContent,
@@ -19,36 +18,39 @@ import {
 import {
     ShoppingCart as ShoppingCartIcon,
     BookmarkBorder as RentIcon,
-    Favorite as FavoriteIcon,
-    Close as CloseIcon,
+    Info as InfoIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import LoadingSpinner from './LoadingSpinner';
+import { addDays } from 'date-fns';
+import { toast } from 'react-toastify';
 import { orderService } from '../services/orderService';
 import { rentalService } from '../services/rentalService';
-import { toast } from 'react-toastify';
-import { addDays, format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 const StyledCard = styled(Card)({
-    height: '100%',
+    height: '500px', // Augmentation de la hauteur fixe
     display: 'flex',
     flexDirection: 'column',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    backdropFilter: 'blur(10px)',
-    borderRadius: '16px',
+    backgroundColor: '#ffffff',
+    borderRadius: '20px',
     overflow: 'hidden',
-    transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+    transition: 'all 0.3s ease',
+    border: '1px solid rgba(231, 72, 111, 0.1)',
+    boxShadow: '0 10px 20px rgba(0,0,0,0.05)',
     '&:hover': {
-        transform: 'translateY(-4px)',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+        transform: 'translateY(-8px)',
+        boxShadow: '0 15px 30px rgba(231, 72, 111, 0.1)',
     },
 });
 
 const StyledCardMedia = styled(CardMedia)({
-    height: 240,
+    height: '340px', // Augmentation de la hauteur de l'image
     position: 'relative',
+    transition: 'transform 0.3s ease',
+    objectFit: 'cover',
+    '&:hover': {
+        transform: 'scale(1.05)',
+    },
 });
 
 const BookOverlay = styled(Box)({
@@ -57,12 +59,13 @@ const BookOverlay = styled(Box)({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'rgba(255, 255, 255, 0.85)', // Overlay blanc transparent
+    backdropFilter: 'blur(4px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0,
-    transition: 'opacity 0.2s ease-in-out',
+    transition: 'opacity 0.3s ease',
     '&:hover': {
         opacity: 1,
     },
@@ -70,28 +73,33 @@ const BookOverlay = styled(Box)({
 
 const ActionButton = styled(Button)({
     margin: '0 8px',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    color: '#2A2A2A',
+    minWidth: 'auto',
+    padding: '8px',
+    color: '#757575', // Gris neutre
     '&:hover': {
-        backgroundColor: '#ffffff',
+        backgroundColor: 'transparent',
+        color: '#424242', // Gris plus foncé au survol
     },
+    '& .MuiSvgIcon-root': {
+        fontSize: '1.8rem',
+    }
 });
 
 const PriceChip = styled(Chip)({
     position: 'absolute',
     top: 16,
     right: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    fontWeight: 600,
-    fontSize: '1rem',
-});
-
-const StyledDialog = styled(Dialog)(({ theme }) => ({
-    '& .MuiDialog-paper': {
-        borderRadius: '16px',
-        padding: theme.spacing(2),
+    backgroundColor: '#ffffff',
+    color: '#e7486f',
+    fontWeight: 700,
+    fontSize: '1.1rem',
+    padding: '8px 4px',
+    borderRadius: '12px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+    '& .MuiChip-label': {
+        padding: '0 12px',
     },
-}));
+});
 
 const BookCard = ({ 
     book, 
@@ -103,6 +111,7 @@ const BookCard = ({
     isAuthorView,
     hideActions 
 }) => {
+    const navigate = useNavigate();
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedAction, setSelectedAction] = useState(null);
     const [rentDate, setRentDate] = useState(addDays(new Date(), 1));
@@ -185,30 +194,35 @@ const BookCard = ({
 
     return (
         <StyledCard>
-            <StyledCardMedia
-                image={book.poster || '/default-book.jpg'}
-                title={book.title}
-            >
+            <Box sx={{ position: 'relative' }}>
+                <StyledCardMedia
+                    component="img"
+                    src={book.poster ? `http://localhost:8000/books/${book.poster.replace(/^.*[\\\/]/, '')}` : '/placeholder-book.jpg'}
+                    title={book.title}
+                    alt={book.title}
+                />
                 <PriceChip label={`$${book.price}`} />
                 {!hideActions && (
                     <BookOverlay>
-                        {!isAuthorView && (
+                        <ActionButton
+                            onClick={() => navigate(`/user/books/${book._id}`)}
+                        >
+                            <InfoIcon />
+                        </ActionButton>
+                        {!isAuthorView ? (
                             <>
                                 <ActionButton
-                                    startIcon={<ShoppingCartIcon />}
-                                    onClick={() => handleActionClick('buy')}
+                                    onClick={() => handleActionClick('order')}
                                 >
-                                    Buy
+                                    <ShoppingCartIcon />
                                 </ActionButton>
                                 <ActionButton
-                                    startIcon={<RentIcon />}
                                     onClick={() => handleActionClick('rent')}
                                 >
-                                    Rent
+                                    <RentIcon />
                                 </ActionButton>
                             </>
-                        )}
-                        {isAuthorView && (
+                        ) : (
                             <>
                                 <ActionButton onClick={() => onEdit(book)}>
                                     Edit
@@ -220,8 +234,25 @@ const BookCard = ({
                         )}
                     </BookOverlay>
                 )}
-            </StyledCardMedia>
-            <CardContent sx={{ flexGrow: 1 }}>
+            </Box>
+            <CardContent sx={{ 
+                flexGrow: 1, 
+                p: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                minHeight: '160px', // Hauteur minimale pour le contenu
+                '& .MuiTypography-h6': {
+                    fontSize: '1.2rem',
+                    fontWeight: 700,
+                    color: '#2A2A2A',
+                    mb: 1
+                },
+                '& .MuiTypography-body2': {
+                    color: 'rgba(0,0,0,0.6)',
+                    fontSize: '0.95rem'
+                }
+            }}>
                 <Typography gutterBottom variant="h6" component="h2">
                     {book.title}
                 </Typography>
@@ -233,7 +264,17 @@ const BookCard = ({
                 </Typography>
             </CardContent>
 
-            <Dialog open={openDialog} onClose={handleClose}>
+            <Dialog 
+                open={openDialog} 
+                onClose={handleClose}
+                PaperProps={{
+                    sx: {
+                        borderRadius: '20px',
+                        p: 2,
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.1)'
+                    }
+                }}
+            >
                 <DialogTitle>
                     {selectedAction === 'order' ? 'Order Book' : 'Rent Book'}
                 </DialogTitle>
@@ -248,15 +289,20 @@ const BookCard = ({
                             {book.title}
                         </Typography>
                         {selectedAction === 'order' ? (
-                            <TextField
-                                fullWidth
-                                type="number"
-                                label="Quantity"
-                                value={quantity}
-                                onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                                inputProps={{ min: 1, max: book.stock }}
-                                sx={{ mt: 2 }}
-                            />
+                            <>
+                                <TextField
+                                    fullWidth
+                                    type="number"
+                                    label="Quantity"
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                    inputProps={{ min: 1, max: book.stock }}
+                                    sx={{ mt: 2 }}
+                                />
+                                <Typography sx={{ mt: 2, fontWeight: 'bold' }}>
+                                    Total: ${(quantity * book.price).toFixed(2)}
+                                </Typography>
+                            </>
                         ) : (
                             <DatePicker
                                 label="Return Date"
@@ -276,7 +322,11 @@ const BookCard = ({
                         variant="contained"
                         disabled={isLoading}
                     >
-                        {isLoading ? 'Processing...' : selectedAction === 'order' ? 'Place Order' : 'Rent Book'}
+                        {isLoading
+                            ? 'Processing...'
+                            : selectedAction === 'order'
+                            ? 'Place Order'
+                            : 'Rent Book'}
                     </Button>
                 </DialogActions>
             </Dialog>

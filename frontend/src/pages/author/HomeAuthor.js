@@ -25,6 +25,7 @@ import BookCard from '../../components/BookCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { useAuth } from '../../auth/AuthContext';
 import { toast } from 'react-toastify';
+import Banner from '../../components/Banner';
 
 const MainContainer = styled(Box)(({ theme }) => ({
     background: 'linear-gradient(90deg, #f1efe9 0%, #f9f7f2 100%)',
@@ -62,6 +63,35 @@ const StyledCard = styled(Card)({
     }
 });
 
+const SearchField = styled(TextField)({
+    '& .MuiOutlinedInput-root': {
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backdropFilter: 'blur(8px)',
+        borderRadius: '12px',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        },
+        '&.Mui-focused': {
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+        }
+    }
+});
+
+const FilterSelect = styled(Select)({
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: '12px',
+    transition: 'all 0.3s ease',
+    '&:hover': {
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    },
+    '&.Mui-focused': {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+    }
+});
+
 const HomeAuthor = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -74,27 +104,40 @@ const HomeAuthor = () => {
         category: ''
     });
     const [categories, setCategories] = useState([]);
-    const [actionLoading, setActionLoading] = useState({ type: null, id: null });
+    const [actionLoading, setActionLoading] = useState({ type: null, id: null });    const loadCategories = useCallback(async () => {
+        try {
+            const response = await bookService.getCategories();
+            setCategories(response);
+        } catch (error) {
+            console.error('Failed to load categories:', error);
+        }
+    }, []);
 
     const loadBooks = useCallback(async () => {
         try {
             setLoading(true);
-            const [booksData, categoriesData] = await Promise.all([
-                bookService.searchBooks(filters),
-                bookService.getCategories()
-            ]);
-            setBooks(booksData);
-            setCategories(categoriesData);
-            setLoading(false);
+            setError(null);
+            const booksData = await bookService.searchBooks({
+                ...filters,
+                category: filters.category || undefined
+            });
+            setBooks(Array.isArray(booksData) ? booksData : []);
         } catch (err) {
             setError('Failed to load books. Please try again later.');
+        } finally {
             setLoading(false);
         }
-    }, [filters]);
+    }, [filters]);    useEffect(() => {
+        loadCategories();
+    }, [loadCategories]);
 
     useEffect(() => {
-        loadBooks();
-    }, [loadBooks]);    const handleFilterChange = (name, value) => {
+        const debounceTimeout = setTimeout(() => {
+            loadBooks();
+        }, 500);
+
+        return () => clearTimeout(debounceTimeout);
+    }, [loadBooks]);const handleFilterChange = (name, value) => {
         setFilters(prev => ({
             ...prev,
             [name]: value
@@ -150,6 +193,7 @@ const HomeAuthor = () => {
 
     return (
         <MainContainer>
+            <Banner userType="author" />
             <ContentWrapper>
                 <Grid container spacing={3}>
                     <Grid item xs={12}>
@@ -159,53 +203,49 @@ const HomeAuthor = () => {
                     </Grid>
 
                     <Grid item xs={12}>
-                        <FilterPaper>
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} md={6}>
-                                    <TextField
+                        <FilterPaper sx={{ boxShadow: 'none', backgroundColor: 'transparent' }}>
+                            <Grid container spacing={3} alignItems="center">
+                                <Grid item xs={12} md={4}>
+                                    <SearchField
                                         fullWidth
-                                        variant="outlined"                                        placeholder="Search books..."
+                                        placeholder="Search books..."
                                         value={filters.search}
                                         onChange={(e) => handleFilterChange('search', e.target.value)}
                                         InputProps={{
                                             startAdornment: (
                                                 <InputAdornment position="start">
-                                                    <SearchIcon />
+                                                    <SearchIcon sx={{ color: 'text.secondary' }} />
                                                 </InputAdornment>
                                             ),
                                         }}
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={3}>
-                                    <FormControl fullWidth variant="outlined">
-                                        <InputLabel>Category</InputLabel>
-                                        <Select
-                                            value={filters.category}
+                                <Grid item xs={12} md={4}>
+                                    <FormControl fullWidth>
+                                        <FilterSelect
+                                            value={filters.category || ''}
                                             onChange={(e) => handleFilterChange('category', e.target.value)}
-                                            label="Category"
-                                        >
-                                            <MenuItem value="">All Categories</MenuItem>
+                                            displayEmpty
+                                            renderValue={(selected) => selected || 'All Categories'}
+                                        >                                            <MenuItem value="">All Categories</MenuItem>
                                             {categories.map((category) => (
-                                                <MenuItem key={category._id} value={category._id}>
+                                                <MenuItem key={category._id} value={category.name}>
                                                     {category.name}
                                                 </MenuItem>
                                             ))}
-                                        </Select>
+                                        </FilterSelect>
                                     </FormControl>
                                 </Grid>
-                                <Grid item xs={12} md={3}>
-                                    <FormControl fullWidth variant="outlined">
-                                        <InputLabel>Sort By</InputLabel>
-                                        <Select
+                                <Grid item xs={12} md={4}>
+                                    <FormControl fullWidth>
+                                        <FilterSelect
                                             value={filters.sortBy}
                                             onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                                            label="Sort By"
+                                            displayEmpty
                                         >
                                             <MenuItem value="newest">Newest First</MenuItem>
                                             <MenuItem value="oldest">Oldest First</MenuItem>
-                                            <MenuItem value="priceAsc">Price: Low to High</MenuItem>
-                                            <MenuItem value="priceDesc">Price: High to Low</MenuItem>
-                                        </Select>
+                                        </FilterSelect>
                                     </FormControl>
                                 </Grid>
                             </Grid>

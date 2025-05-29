@@ -71,7 +71,7 @@ const SidebarItem = styled(ListItem)(({ theme, active }) => ({
 
 const getPagesByRole= (role) => {
     const commonPages = [
-        { name: 'About Us', icon: <InfoIcon />, path: '/about' },
+        { name: 'About Us', icon: <InfoIcon />, path: '/user/about' },
     ];
 
     const pagesByRole = {

@@ -36,16 +36,30 @@ export const handleBookUpload = (req, res, next) => {
         if (err instanceof multer.MulterError) {
             return res.status(400).json({
                 success: false,
-                message: "File upload error",
+                message: "Erreur de téléchargement du fichier",
                 error: err.message
             });
         } else if (err) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid file type. Please upload only images.",
+                message: "Type de fichier invalide. Veuillez télécharger uniquement des images.",
                 error: err.message
             });
         }
+
+        // If no file was uploaded, that's okay - continue
+        if (!req.file) {
+            console.log("No file uploaded, continuing...");
+        }
+
+        // Ensure req.body is populated even if no file is uploaded
+        if (!req.body) {
+            return res.status(400).json({
+                success: false,
+                message: "Données du formulaire manquantes"
+            });
+        }
+
         next();
     });
 };

@@ -54,19 +54,28 @@ export const bookService = {
         }
     },    createBook: async (bookData) => {
         try {
+            // Log des données envoyées pour le débogage
+            console.log('Sending book data:', Object.fromEntries(bookData));
+            
             const response = await api.post('/books', bookData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 }
             });
-            return response.data;
+            
+            return {
+                success: true,
+                ...response.data
+            };
         } catch (error) {
             console.error('Create book error:', error);
-            throw error.response?.data || error;
+            console.error('Server response:', error.response?.data);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Erreur lors de la création du livre'
+            };
         }
-    },
-
-    updateBook: async (id, bookData) => {
+    },    updateBook: async (id, bookData) => {
         try {
             const formData = new FormData();
             Object.keys(bookData).forEach(key => {
@@ -74,11 +83,22 @@ export const bookService = {
                     formData.append(key, bookData[key]);
                 }
             });
-            const response = await api.put(`/books/${id}`, formData);
-            return response.data;
+            const response = await api.put(`/books/${id}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            return {
+                success: true,
+                ...response.data
+            };
         } catch (error) {
             console.error('Update book error:', error);
-            throw error.response?.data || error;
+            console.error('Server response:', error.response?.data);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Erreur lors de la mise à jour'
+            };
         }
     },
 
@@ -112,6 +132,15 @@ export const bookService = {
         } catch (error) {
             console.error('Error fetching author stats:', error);
             throw error.response?.data || error;
+        }
+    },
+
+    getBookPublicDetails: async (bookId) => {
+        try {
+            const response = await api.get(`/books/public/${bookId}`);
+            return response.data;
+        } catch (error) {
+            throw error.response?.data || error.message;
         }
     }
 };
