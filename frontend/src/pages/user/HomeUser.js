@@ -19,6 +19,11 @@ import {
     Select,
     MenuItem,
 } from '@mui/material';
+import {
+    GitHub as GitHubIcon,
+    LinkedIn as LinkedInIcon,
+    Instagram as InstagramIcon
+} from '@mui/icons-material';
 import { ArrowForward, ArrowBack, ArrowForwardIos, Search as SearchIcon } from '@mui/icons-material';
 import BookCard from '../../components/BookCard';
 import LoadingSpinner from '../../components/LoadingSpinner';
@@ -112,9 +117,7 @@ const HomeUser = () => {
         } finally {
             setLoading(false);
         }
-    }, [filters]);    useEffect(() => {
-        loadCategories();
-    }, [loadCategories]);
+    }, [filters]);
 
     useEffect(() => {
         const debounceTimeout = setTimeout(() => {
@@ -135,7 +138,7 @@ const HomeUser = () => {
         <MainContainer>
             <Banner userType="reader" />
             <ContentWrapper maxWidth="xl">                <Box mb={6}>
-                    <Box sx={{ 
+                    {/* <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 3, 
@@ -164,7 +167,7 @@ const HomeUser = () => {
                                 {user?.email}
                             </Typography>
                         </Box>
-                    </Box>
+                    </Box> */}
                     <HeadingText variant="h2" gutterBottom>
                         Keep the story going...
                     </HeadingText>
@@ -278,21 +281,75 @@ const HomeUser = () => {
                             ))}
                         </Grid>
                     </>
-                )}
-                
-                <Box 
+                )}                <Box 
                     sx={{ 
                         mt: 6, 
-                        textAlign: 'center',
                         p: 4,
-                        borderTop: '1px solid rgba(0,0,0,0.1)'
+                        borderTop: '1px solid rgba(0,0,0,0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                        maxWidth: '800px',
+                        margin: '2rem auto'
                     }}
                 >
-                    <Typography variant="body1" color="text.secondary">
-                        Discover more books every day with{' '}
-                        <Box component="span" sx={{ color: '#e7486f', fontWeight: 600 }}>
-                            BiblioF
-                        </Box>
+                    <Box
+                        component="img"
+                        src="/assets/images/LOGO2.png"
+                        alt="BiblioF Logo"
+                        sx={{
+                            height: '40px',
+                            width: 'auto'
+                        }}
+                    />
+                    <Box sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        '& a': {
+                            color: '#666',
+                            transition: 'color 0.3s ease',
+                            '&:hover': {
+                                color: '#e7486f'
+                            }
+                        }
+                    }}>
+                        <IconButton 
+                            component="a" 
+                            href="https://github.com/ShedlyLaad" 
+                            target="_blank"
+                            size="small"
+                            aria-label="GitHub"
+                        >
+                            <GitHubIcon />
+                        </IconButton>
+                        <IconButton 
+                            component="a" 
+                            href="https://www.linkedin.com/in/chedlylaadhiby98/" 
+                            target="_blank"
+                            size="small"
+                            aria-label="LinkedIn"
+                        >
+                            <LinkedInIcon />
+                        </IconButton>
+                        <IconButton 
+                            component="a" 
+                            href="https://www.instagram.com/shedlylaadhiby/" 
+                            target="_blank"
+                            size="small"
+                            aria-label="Instagram"
+                        >
+                            <InstagramIcon />
+                        </IconButton>
+                    </Box>
+
+                    <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{ opacity: 0.7 }}
+                    >
+                        © 2025 BiblioF. All rights reserved.
                     </Typography>
                 </Box>
             </ContentWrapper>

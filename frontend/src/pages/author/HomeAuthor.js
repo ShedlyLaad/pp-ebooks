@@ -12,8 +12,14 @@ import {
     Select,
     MenuItem,
     Card,
+    IconButton,
     styled,
 } from '@mui/material';
+import {
+    GitHub as GitHubIcon,
+    LinkedIn as LinkedInIcon,
+    Instagram as InstagramIcon
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import {
     Search as SearchIcon,
@@ -279,8 +285,77 @@ const HomeAuthor = () => {
                                 ))}
                             </Grid>
                         </Grid>
-                    )}
-                </Grid>
+                    )}                </Grid>                <Box 
+                    sx={{ 
+                        mt: 6, 
+                        p: 4,
+                        borderTop: '1px solid rgba(0,0,0,0.1)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 4,
+                        maxWidth: '800px',
+                        margin: '2rem auto'
+                    }}
+                >
+                    <Box
+                        component="img"
+                        src="/assets/images/LOGO2.png"
+                        alt="BiblioF Logo"
+                        sx={{
+                            height: '40px',
+                            width: 'auto'
+                        }}
+                    />
+                    <Box sx={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        '& a': {
+                            color: '#666',
+                            transition: 'color 0.3s ease',
+                            '&:hover': {
+                                color: '#e7486f'
+                            }
+                        }
+                    }}>
+                        <IconButton 
+                            component="a" 
+                            href="https://github.com/ShedlyLaad" 
+                            target="_blank"
+                            size="small"
+                            aria-label="GitHub"
+                        >
+                            <GitHubIcon />
+                        </IconButton>
+                        <IconButton 
+                            component="a" 
+                            href="https://www.linkedin.com/in/chedlylaadhiby98/" 
+                            target="_blank"
+                            size="small"
+                            aria-label="LinkedIn"
+                        >
+                            <LinkedInIcon />
+                        </IconButton>
+                        <IconButton 
+                            component="a" 
+                            href="https://www.instagram.com/shedlylaadhiby/" 
+                            target="_blank"
+                            size="small"
+                            aria-label="Instagram"
+                        >
+                            <InstagramIcon />
+                        </IconButton>
+                    </Box>
+
+                    <Typography 
+                        variant="caption" 
+                        color="text.secondary"
+                        sx={{ opacity: 0.7 }}
+                    >
+                        © 2025 E-KITAB. All rights reserved.
+                    </Typography>
+                </Box>
             </ContentWrapper>
         </MainContainer>
     );
